@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 )
 
@@ -24,7 +26,8 @@ var servicesUpCmd = &cobra.Command{
 	Short: "Start shared services (MySQL, Redis, Typesense, etc.)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("Starting shared services...")
-		if err := docker.Up(); err != nil {
+		projectsDir := projectsDirOrHome()
+		if err := docker.Up(projectsDir, []string{config.DefaultPHP}); err != nil {
 			return err
 		}
 		fmt.Println("✓ Services running")
@@ -43,4 +46,15 @@ var servicesDownCmd = &cobra.Command{
 		fmt.Println("✓ Services stopped")
 		return nil
 	},
+}
+
+// projectsDirOrHome returns the current working directory or falls back to the user's home directory.
+func projectsDirOrHome() string {
+	if dir, err := os.Getwd(); err == nil {
+		return dir
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return home
+	}
+	return "."
 }

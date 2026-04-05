@@ -11,7 +11,7 @@ import (
 
 // DockerService manages shared Docker containers.
 type DockerService interface {
-	Up() error
+	Up(phpVersions []string) error
 	Down() error
 }
 
@@ -43,7 +43,7 @@ func (l *Lifecycle) Start(p *project.Project, fpmSocket string) error {
 	l.printf("Starting %s...\n", p.Name)
 
 	l.printf("  → Starting shared services...\n")
-	if err := l.Docker.Up(); err != nil {
+	if err := l.Docker.Up([]string{p.Config.PHP}); err != nil {
 		return fmt.Errorf("starting services: %w", err)
 	}
 

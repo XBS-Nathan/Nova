@@ -17,8 +17,8 @@ type mockDocker struct {
 	downErr    error
 }
 
-func (m *mockDocker) Up() error   { m.upCalled = true; return m.upErr }
-func (m *mockDocker) Down() error { m.downCalled = true; return m.downErr }
+func (m *mockDocker) Up(_ []string) error { m.upCalled = true; return m.upErr }
+func (m *mockDocker) Down() error         { m.downCalled = true; return m.downErr }
 
 // mockCaddy records calls and can return errors.
 type mockCaddy struct {

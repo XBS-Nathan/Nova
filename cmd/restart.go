@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"path/filepath"
+
 	"github.com/spf13/cobra"
 
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/caddy"
@@ -24,7 +26,7 @@ var restartCmd = &cobra.Command{
 		}
 
 		lc := &lifecycle.Lifecycle{
-			Docker: docker.Service{},
+			Docker: docker.Service{ProjectsDir: filepath.Dir(p.Dir)},
 			Caddy:  caddy.Service{},
 		}
 
