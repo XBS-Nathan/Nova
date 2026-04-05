@@ -72,5 +72,5 @@ func (p *Project) PHPBin() string {
 
 // SiteDomain returns the .test domain for this project.
 func (p *Project) SiteDomain() string {
-	return fmt.Sprintf("%s.test", p.Name)
+	return p.Config.Domain
 }

@@ -10,108 +10,99 @@ import (
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 )
 
-const caddyDir = "caddy"
-
-// SiteConfigPath returns the path to a site's Caddy config file.
-func SiteConfigPath(siteName string) string {
-	dir := filepath.Join(config.GlobalDir(), caddyDir, "sites")
-	_ = os.MkdirAll(dir, 0755) // errors surface when caller writes
-	return filepath.Join(dir, siteName+".caddy")
+// PortProxy maps a host-facing port to the backend service that handles it.
+type PortProxy struct {
+	Port    string // e.g. "8080"
+	Backend string // e.g. "node-xlinx"
 }
 
-// CaddyfilePath returns the path to the main Caddyfile.
-func CaddyfilePath() string {
-	dir := filepath.Join(config.GlobalDir(), caddyDir)
-	_ = os.MkdirAll(dir, 0755) // errors surface when caller writes
-	return filepath.Join(dir, "Caddyfile")
-}
-
-// Link creates a Caddy site config for a project.
-func Link(siteName, projectDir, fpmSocket string) error {
-	docroot := filepath.Join(projectDir, "public")
-
-	siteConfig := fmt.Sprintf(`%s.test {
-	root * %s
-	php_fastcgi unix/%s
-	file_server
-	encode gzip
-
-	log {
-		output file %s/logs/%s.log
+// Link creates a Caddy site config and reloads.
+func Link(siteName, docroot, phpService string, portProxies []PortProxy) error {
+	caddyDir := filepath.Join(config.GlobalDir(), "caddy")
+	if err := writeSiteConfig(caddyDir, siteName, docroot, phpService, portProxies); err != nil {
+		return err
 	}
+	if err := writeMainCaddyfile(caddyDir); err != nil {
+		return err
+	}
+	return Reload()
 }
-`, siteName, docroot, fpmSocket, config.GlobalDir(), siteName)
 
-	if err := os.WriteFile(SiteConfigPath(siteName), []byte(siteConfig), 0644); err != nil {
+// Unlink removes a site config and reloads.
+func Unlink(siteName string) error {
+	caddyDir := filepath.Join(config.GlobalDir(), "caddy")
+	removeSiteConfig(caddyDir, siteName)
+	return Reload()
+}
+
+// Reload tells the Caddy container to reload its config.
+func Reload() error {
+	cmd := exec.Command("docker", "compose", "-f",
+		filepath.Join(config.GlobalDir(), "docker-compose.yml"),
+		"exec", "caddy", "caddy", "reload",
+		"--config", "/etc/caddy/Caddyfile")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("caddy reload: %s: %w",
+			strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// SiteConfigPath returns the path for a site's config file.
+func SiteConfigPath(siteName string) string {
+	return filepath.Join(config.GlobalDir(), "caddy", "sites", siteName+".caddy")
+}
+
+func writeSiteConfig(caddyDir, siteName, docroot, phpService string, portProxies []PortProxy) error {
+	sitesDir := filepath.Join(caddyDir, "sites")
+	if err := os.MkdirAll(sitesDir, 0755); err != nil {
+		return fmt.Errorf("creating sites dir: %w", err)
+	}
+
+	content := generateSiteConfig(siteName, docroot, phpService, portProxies)
+	path := filepath.Join(sitesDir, siteName+".caddy")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing site config: %w", err)
 	}
-
-	if err := writeMainCaddyfile(); err != nil {
-		return err
-	}
-
-	return Reload()
+	return nil
 }
 
-// Unlink removes a Caddy site config.
-func Unlink(siteName string) error {
-	_ = os.Remove(SiteConfigPath(siteName)) // may already be absent
-
-	if err := writeMainCaddyfile(); err != nil {
-		return err
-	}
-
-	return Reload()
+func removeSiteConfig(caddyDir, siteName string) {
+	path := filepath.Join(caddyDir, "sites", siteName+".caddy")
+	_ = os.Remove(path) // may already be absent
 }
 
-// writeMainCaddyfile generates the main Caddyfile that imports all site configs.
-func writeMainCaddyfile() error {
-	content := fmt.Sprintf("import %s/caddy/sites/*.caddy\n", config.GlobalDir())
-	return os.WriteFile(CaddyfilePath(), []byte(content), 0644)
-}
-
-// Reload tells Caddy to reload its configuration.
-func Reload() error {
-	cmd := exec.Command("caddy", "reload", "--config", CaddyfilePath())
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("caddy reload: %s: %w", strings.TrimSpace(string(output)), err)
+func writeMainCaddyfile(caddyDir string) error {
+	content := generateMainCaddyfile()
+	path := filepath.Join(caddyDir, "Caddyfile")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		return fmt.Errorf("writing Caddyfile: %w", err)
 	}
 	return nil
 }
 
-// IsRunning checks if Caddy is currently running.
-func IsRunning() bool {
-	cmd := exec.Command("pgrep", "-x", "caddy")
-	return cmd.Run() == nil
+func generateSiteConfig(siteName, docroot, phpService string, portProxies []PortProxy) string {
+	var b strings.Builder
+
+	// Main site block
+	fmt.Fprintf(&b, "%s.test {\n", siteName)
+	fmt.Fprintf(&b, "\troot * %s\n", docroot)
+	fmt.Fprintf(&b, "\tphp_fastcgi %s:9000\n", phpService)
+	b.WriteString("\tfile_server\n")
+	b.WriteString("\tencode gzip\n")
+	b.WriteString("}\n")
+
+	// Extra port blocks — SSL-terminated reverse proxy to backend services
+	for _, pp := range portProxies {
+		fmt.Fprintf(&b, "\n%s.test:%s {\n", siteName, pp.Port)
+		fmt.Fprintf(&b, "\treverse_proxy %s:%s\n", pp.Backend, pp.Port)
+		b.WriteString("}\n")
+	}
+
+	return b.String()
 }
 
-// Start starts Caddy if not already running.
-func Start() error {
-	if IsRunning() {
-		return nil
-	}
-
-	if err := writeMainCaddyfile(); err != nil {
-		return err
-	}
-
-	cmd := exec.Command("caddy", "start", "--config", CaddyfilePath())
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("caddy start: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
-}
-
-// Stop stops Caddy.
-func Stop() error {
-	if !IsRunning() {
-		return nil
-	}
-	cmd := exec.Command("caddy", "stop")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("caddy stop: %s: %w", strings.TrimSpace(string(output)), err)
-	}
-	return nil
+func generateMainCaddyfile() string {
+	return "{\n\tlocal_certs\n}\n\nimport /etc/caddy/sites/*.caddy\n"
 }

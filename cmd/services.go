@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 )
 
@@ -21,10 +22,31 @@ var servicesCmd = &cobra.Command{
 
 var servicesUpCmd = &cobra.Command{
 	Use:   "up",
-	Short: "Start shared services (MySQL, Redis, Typesense, etc.)",
+	Short: "Start shared services (MySQL, Redis, etc.)",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
+		}
+
+		// Use a default project config to collect versions from all projects
+		defaultCfg := &config.ProjectConfig{
+			DBDriver:     "mysql",
+			DBVersion:    global.Versions.MySQL,
+			RedisVersion: global.Versions.Redis,
+		}
+		collected := config.CollectVersions(global.ProjectsDir, defaultCfg)
+
 		fmt.Println("Starting shared services...")
-		if err := docker.Up(); err != nil {
+		opts := docker.ComposeOptions{
+			ProjectsDir:      global.ProjectsDir,
+			PHP:              []docker.PHPVersion{{Version: config.DefaultPHP}},
+			MySQLVersions:    collected.MySQL,
+			PostgresVersions: collected.Postgres,
+			RedisVersions:    collected.Redis,
+			MailpitVersion:   global.Versions.Mailpit,
+		}
+		if err := docker.Up(opts); err != nil {
 			return err
 		}
 		fmt.Println("✓ Services running")

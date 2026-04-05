@@ -3,23 +3,19 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/caddy"
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/lifecycle"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 )
 
-func init() {
-	rootCmd.AddCommand(downCmd)
-}
+func init() { rootCmd.AddCommand(downCmd) }
 
 var downCmd = &cobra.Command{
 	Use:   "down",
 	Short: "Stop all projects and shared services",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		lc := &lifecycle.Lifecycle{
-			Docker: docker.Service{},
-			Caddy:  caddy.Service{},
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
 		}
-		return lc.Down()
+		return newLifecycle(global, &config.ProjectConfig{}).Down()
 	},
 }

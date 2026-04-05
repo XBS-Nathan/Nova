@@ -6,14 +6,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 )
 
-// MySQLStore implements Store using mydumper/myloader for fast parallel snapshots
-// and the mysql CLI for database management.
+// MySQLStore implements Store using the mysql CLI inside a Docker container.
 type MySQLStore struct {
-	Config config.MySQLConfig
+	Config  config.MySQLConfig
+	Service string // docker compose service name, e.g. "mysql80"
 }
 
 func (s *MySQLStore) CreateIfNotExists(dbName string) error {
@@ -181,9 +183,14 @@ func (s *MySQLStore) mysqlRestoreFile(dbName, path string) error {
 }
 
 func (s *MySQLStore) exec(sql string) error {
-	cmd := exec.Command("mysql",
-		"-u", s.Config.User, fmt.Sprintf("-p%s", s.Config.Pass),
-		"-h", s.Config.Host, "-P", s.Config.Port,
+	if err := s.waitForReady(); err != nil {
+		return err
+	}
+	cmd := dockerExec(s.Service,
+		"mysql",
+		"-u", s.Config.User,
+		fmt.Sprintf("-p%s", s.Config.Pass),
+		"-h", "127.0.0.1",
 		"-e", sql,
 	)
 	output, err := cmd.CombinedOutput()
@@ -191,4 +198,12 @@ func (s *MySQLStore) exec(sql string) error {
 		return fmt.Errorf("mysql: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil
+}
+
+// waitForReady polls MySQL until it accepts connections.
+func (s *MySQLStore) waitForReady() error {
+	return docker.WaitForReady(s.Service, 120*time.Second, []string{
+		"mysqladmin", "ping", "-h", "127.0.0.1",
+		"-uroot", "-proot", "--ssl-mode=DISABLED",
+	})
 }

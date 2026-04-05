@@ -38,7 +38,7 @@ func TestSanitizeDBName(t *testing.T) {
 
 func TestNewStore(t *testing.T) {
 	t.Run("mysql driver", func(t *testing.T) {
-		store, err := NewStore(config.DBConfig{Driver: "mysql"})
+		store, err := NewStore(config.DBConfig{Driver: "mysql"}, "mysql")
 		if err != nil {
 			t.Fatalf("NewStore() error = %v", err)
 		}
@@ -48,7 +48,7 @@ func TestNewStore(t *testing.T) {
 	})
 
 	t.Run("empty driver defaults to mysql", func(t *testing.T) {
-		store, err := NewStore(config.DBConfig{Driver: ""})
+		store, err := NewStore(config.DBConfig{Driver: ""}, "mysql")
 		if err != nil {
 			t.Fatalf("NewStore() error = %v", err)
 		}
@@ -58,7 +58,7 @@ func TestNewStore(t *testing.T) {
 	})
 
 	t.Run("postgres driver", func(t *testing.T) {
-		store, err := NewStore(config.DBConfig{Driver: "postgres"})
+		store, err := NewStore(config.DBConfig{Driver: "postgres"}, "postgres")
 		if err != nil {
 			t.Fatalf("NewStore() error = %v", err)
 		}
@@ -68,7 +68,7 @@ func TestNewStore(t *testing.T) {
 	})
 
 	t.Run("unsupported driver", func(t *testing.T) {
-		_, err := NewStore(config.DBConfig{Driver: "sqlite"})
+		_, err := NewStore(config.DBConfig{Driver: "sqlite"}, "sqlite")
 		if err == nil {
 			t.Error("expected error for unsupported driver, got nil")
 		}

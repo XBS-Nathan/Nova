@@ -2,7 +2,7 @@
 
 ## Project
 
-`dev` — a fast, lightweight CLI for managing Laravel (and generic) development environments on Linux and macOS. Alternative to DDEV. Orchestrates PHP-FPM, Caddy, Docker (MySQL/Redis/Typesense/Postgres), database snapshots, and Xdebug.
+`dev` — a fast, lightweight CLI for managing PHP development environments on Linux and macOS. Uses shared Docker containers (PHP-FPM, Caddy, MySQL, Redis, Postgres) so multiple projects share one set of services. Only requires Docker on the host.
 
 ## Quick Reference
 
@@ -32,21 +32,25 @@ go vet ./...
 ```
 cmd/                     # Thin cobra command wrappers — no business logic
 internal/
-  config/                # .dev.yaml loading, ProjectConfig, MySQLConfig, PostgresConfig
+  config/                # .dev.yaml + ~/.dev/config.yaml loading
   project/               # Project detection (walks up looking for markers)
   lifecycle/             # Orchestration: Start, Stop, Down (testable via interfaces)
   db/                    # db.Store interface + MySQLStore/PostgresStore adapters
-  caddy/                 # Caddy reverse proxy management + Service adapter
-  docker/                # Docker compose management + Service adapter
-  php/                   # PHP-FPM helpers (socket paths, service names)
+  caddy/                 # Caddy site config generation, reload via docker exec
+  docker/                # Dynamic docker-compose.yml generation, Exec for running in containers
+  hosts/                 # /etc/hosts management, WSL2 detection
+  phpimage/              # PHP Dockerfile generation, extension union, image building
 ```
 
-**Dependency direction:** `cmd/ → lifecycle → {caddy, docker, db, project} → config`
+**Dependency direction:** `cmd/ → lifecycle → {caddy, docker, db, hosts, project} → config`
 
-**Key interfaces:**
+**Key interfaces (defined in lifecycle package):**
+- `DockerService` — `Up(phpVersions)`, `Down()`, `Exec(service, workdir, args...)`
+- `CaddyService` — `Start()`, `Stop()`, `Link(site, docroot, phpService)`, `Unlink(site)`, `Reload()`
+- `HostsService` — `Ensure(domain)`
 - `db.Store` — `CreateIfNotExists`, `Drop`, `Snapshot`, `Restore`
-- `lifecycle.DockerService` — `Up`, `Down`
-- `lifecycle.CaddyService` — `Start`, `Stop`, `Link`, `Unlink`
+
+**Service adapters:** `caddy.Service{}`, `docker.Service{ProjectsDir}`, `hosts.Service{}` wrap package-level functions to satisfy lifecycle interfaces.
 
 ## Conventions
 
@@ -62,9 +66,12 @@ internal/
 
 - **cmd/ must be thin** — all orchestration lives in `internal/lifecycle`
 - **Adapter pattern for DB** — `db.NewStore(config)` returns `MySQLStore` or `PostgresStore` based on `db_driver`
-- **Service wrappers** — `caddy.Service{}` and `docker.Service{}` wrap package-level functions to satisfy lifecycle interfaces
-- **Config defaults** — `config.Load()` fills all defaults so callers never see zero values for PHP, Node, DBDriver, MySQL/Postgres connection settings
-- **Snapshot formats** — snapshots are directories (mydumper/pg_dump -Fd). `ListSnapshots` also finds `.sql` and `.sql.gz` files for manual restore.
+- **Service wrappers** — adapter structs wrap package functions to satisfy lifecycle interfaces
+- **Config defaults** — `config.Load()` fills all defaults; `config.LoadGlobal()` handles `~/.dev/config.yaml`
+- **Dynamic compose** — `docker.generateCompose()` builds docker-compose.yml based on needed PHP versions
+- **PHP images** — built from generated Dockerfiles; extensions unioned across projects sharing a version; content-addressed tags prevent unnecessary rebuilds
+- **Hooks run in containers** — via `docker.Exec` into the PHP container, not on the host
+- **Xdebug** — toggled by writing/removing an ini file in a mounted conf.d directory + PHP-FPM reload signal
 
 ### Database Support
 

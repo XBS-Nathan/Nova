@@ -55,6 +55,28 @@ func TestDetectType(t *testing.T) {
 	})
 }
 
+func TestDefaultExtensionsForType(t *testing.T) {
+	t.Run("laravel has default extensions", func(t *testing.T) {
+		exts := defaultExtensionsForType(TypeLaravel)
+		if len(exts) == 0 {
+			t.Fatal("expected extensions for laravel, got none")
+		}
+		want := map[string]bool{"gd": true, "zip": true, "intl": true, "exif": true}
+		for _, ext := range exts {
+			if !want[ext] {
+				t.Errorf("unexpected extension %q", ext)
+			}
+		}
+	})
+
+	t.Run("generic has no extensions", func(t *testing.T) {
+		exts := defaultExtensionsForType(TypeGeneric)
+		if len(exts) != 0 {
+			t.Errorf("expected no extensions for generic, got %v", exts)
+		}
+	})
+}
+
 func TestDefaultHooksForType(t *testing.T) {
 	t.Run("laravel has default hooks", func(t *testing.T) {
 		hooks := defaultHooksForType(TypeLaravel)
@@ -190,6 +212,31 @@ func TestLoad_InvalidYAML(t *testing.T) {
 	_, err := Load(dir)
 	if err == nil {
 		t.Error("expected error for invalid YAML, got nil")
+	}
+}
+
+func TestLoad_ParsesExtensions(t *testing.T) {
+	dir := t.TempDir()
+	yaml := `
+extensions:
+  - imagick
+  - swoole
+`
+	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if len(cfg.Extensions) != 2 {
+		t.Fatalf("Extensions length = %d, want 2", len(cfg.Extensions))
+	}
+	if cfg.Extensions[0] != "imagick" {
+		t.Errorf("Extensions[0] = %q, want %q", cfg.Extensions[0], "imagick")
+	}
+	if cfg.Extensions[1] != "swoole" {
+		t.Errorf("Extensions[1] = %q, want %q", cfg.Extensions[1], "swoole")
 	}
 }
 

@@ -3,15 +3,11 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/caddy"
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/lifecycle"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/project"
 )
 
-func init() {
-	rootCmd.AddCommand(stopCmd)
-}
+func init() { rootCmd.AddCommand(stopCmd) }
 
 var stopCmd = &cobra.Command{
 	Use:   "stop",
@@ -21,11 +17,10 @@ var stopCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		lc := &lifecycle.Lifecycle{
-			Docker: docker.Service{},
-			Caddy:  caddy.Service{},
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
 		}
-		return lc.Stop(p)
+		return newLifecycle(global, p.Config).Stop(p)
 	},
 }

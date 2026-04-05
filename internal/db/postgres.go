@@ -5,13 +5,16 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 )
 
-// PostgresStore implements Store using pg_dump/pg_restore with parallel jobs.
+// PostgresStore implements Store using psql/pg_dump inside a Docker container.
 type PostgresStore struct {
-	Config config.PostgresConfig
+	Config  config.PostgresConfig
+	Service string // docker compose service name, e.g. "postgres16"
 }
 
 func (s *PostgresStore) CreateIfNotExists(dbName string) error {
@@ -21,15 +24,15 @@ func (s *PostgresStore) CreateIfNotExists(dbName string) error {
 			"SELECT 'CREATE DATABASE \"%s\"' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '%s')\\gexec",
 			n, n,
 		)
-		cmd := exec.Command("psql",
-			"-h", s.Config.Host, "-p", s.Config.Port, "-U", s.Config.User,
+		cmd := dockerExec(s.Service,
+			"psql", "-U", s.Config.User,
 			"-d", "postgres",
 			"-c", sql,
 		)
-		cmd.Env = s.connEnv()
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("postgres create %s: %s: %w", n, strings.TrimSpace(string(output)), err)
+			return fmt.Errorf("postgres create %s: %s: %w",
+				n, strings.TrimSpace(string(output)), err)
 		}
 	}
 	return nil
@@ -140,15 +143,24 @@ func (s *PostgresStore) connEnv() []string {
 }
 
 func (s *PostgresStore) exec(sql string) error {
-	cmd := exec.Command("psql",
-		"-h", s.Config.Host, "-p", s.Config.Port, "-U", s.Config.User,
+	if err := s.waitForReady(); err != nil {
+		return err
+	}
+	cmd := dockerExec(s.Service,
+		"psql", "-U", s.Config.User,
 		"-d", "postgres",
 		"-c", sql,
 	)
-	cmd.Env = s.connEnv()
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("postgres: %s: %w", strings.TrimSpace(string(output)), err)
 	}
 	return nil
+}
+
+// waitForReady polls Postgres until it accepts connections.
+func (s *PostgresStore) waitForReady() error {
+	return docker.WaitForReady(s.Service, 120*time.Second, []string{
+		"pg_isready", "-U", s.Config.User,
+	})
 }

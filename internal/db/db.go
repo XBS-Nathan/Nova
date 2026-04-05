@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,12 +20,13 @@ type Store interface {
 }
 
 // NewStore returns a Store for the given config's driver.
-func NewStore(dbc config.DBConfig) (Store, error) {
+// serviceName is the docker compose service name (e.g. "mysql80", "postgres16").
+func NewStore(dbc config.DBConfig, serviceName string) (Store, error) {
 	switch dbc.Driver {
 	case "postgres":
-		return &PostgresStore{Config: dbc.Postgres}, nil
+		return &PostgresStore{Config: dbc.Postgres, Service: serviceName}, nil
 	case "mysql", "":
-		return &MySQLStore{Config: dbc.MySQL}, nil
+		return &MySQLStore{Config: dbc.MySQL, Service: serviceName}, nil
 	default:
 		return nil, fmt.Errorf("unsupported db_driver: %q", dbc.Driver)
 	}
@@ -83,16 +85,17 @@ func IsFileSnapshot(path string) bool {
 	return !info.IsDir()
 }
 
+// dockerExec runs a command inside a docker compose service container.
+func dockerExec(service string, args ...string) *exec.Cmd {
+	composeFile := filepath.Join(config.GlobalDir(), "docker-compose.yml")
+	fullArgs := append(
+		[]string{"compose", "-f", composeFile, "exec", "-T", service},
+		args...,
+	)
+	return exec.Command("docker", fullArgs...)
+}
+
 // sanitizeDBName strips anything that isn't [a-z0-9_] to prevent malformed SQL.
 func sanitizeDBName(name string) string {
-	result := make([]byte, 0, len(name))
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		if (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' {
-			result = append(result, c)
-		} else if c >= 'A' && c <= 'Z' {
-			result = append(result, c+32)
-		}
-	}
-	return string(result)
+	return config.SanitizeName(name, false)
 }

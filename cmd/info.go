@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/caddy"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/project"
 )
@@ -24,33 +26,68 @@ var infoCmd = &cobra.Command{
 			return err
 		}
 
-		linked := "no"
-		if _, err := os.Stat(caddy.SiteConfigPath(p.Name)); err == nil {
-			linked = "yes"
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
 		}
 
-		servicesUp := "no"
-		if docker.IsUp() {
-			servicesUp = "yes"
+		linked := pterm.Green("●")
+		if _, err := os.Stat(caddy.SiteConfigPath(p.Name)); err != nil {
+			linked = pterm.Red("●")
 		}
 
-		caddyUp := "no"
-		if caddy.IsRunning() {
-			caddyUp = "yes"
+		servicesUp := pterm.Green("●")
+		if !docker.IsUp() {
+			servicesUp = pterm.Red("●")
 		}
 
-		fmt.Printf("Project:    %s\n", p.Name)
-		fmt.Printf("Type:       %s\n", p.Config.Type)
-		fmt.Printf("Directory:  %s\n", p.Dir)
-		fmt.Printf("URL:        http://%s\n", p.SiteDomain())
-		fmt.Printf("PHP:        %s\n", p.Config.PHP)
-		fmt.Printf("Node:       %s\n", p.Config.Node)
-		fmt.Printf("DB Driver:  %s\n", p.Config.DBDriver)
-		fmt.Printf("Database:   %s\n", p.Config.DB)
-		fmt.Printf("Linked:     %s\n", linked)
-		fmt.Printf("Caddy:      %s\n", caddyUp)
-		fmt.Printf("Services:   %s\n", servicesUp)
+		dbService := dbServiceForProject(p.Config, global)
+		collected := config.CollectVersions(global.ProjectsDir, p.Config)
+		redisService := docker.ServiceName("redis", p.Config.RedisVersion, len(collected.Redis))
 
+		dbUser := p.Config.MySQL.User
+		dbPass := p.Config.MySQL.Pass
+		dbPort := p.Config.MySQL.Port
+		if p.Config.DBDriver == "postgres" {
+			dbUser = p.Config.Postgres.User
+			dbPass = p.Config.Postgres.Pass
+			dbPort = p.Config.Postgres.Port
+		}
+
+		fmt.Println()
+
+		// Title box
+		pterm.DefaultBox.
+			WithTitle(pterm.LightCyan(p.Name)).
+			WithTitleTopCenter().
+			WithBoxStyle(pterm.NewStyle(pterm.FgGray)).
+			Printfln(
+				"%s  %s   %s  %s   %s  %s\n%s  %s   %s  %s",
+				pterm.Gray("URL"), pterm.LightCyan("https://"+p.SiteDomain()),
+				pterm.Gray("Linked"), linked,
+				pterm.Gray("Services"), servicesUp,
+				pterm.Gray("PHP"), pterm.White(p.Config.PHP),
+				pterm.Gray("Node"), pterm.White(p.Config.Node+" ("+p.Config.PackageManager+")"),
+			)
+
+		fmt.Println()
+
+		// Connection details as a compact table
+		tableData := pterm.TableData{
+			{"Service", "Host", "Port", "User", "Password"},
+			{p.Config.DBDriver, dbService, dbPort, dbUser, dbPass},
+			{"Redis", redisService, "6379", "-", "-"},
+			{"Mailpit (SMTP)", "mailpit", "1025", "-", "-"},
+			{"Mailpit (UI)", "http://localhost:8025", "8025", "-", "-"},
+		}
+
+		pterm.DefaultTable.
+			WithHasHeader().
+			WithBoxed().
+			WithData(tableData).
+			Render()
+
+		fmt.Println()
 		return nil
 	},
 }

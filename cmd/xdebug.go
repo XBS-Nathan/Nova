@@ -2,17 +2,17 @@ package cmd
 
 import (
 	"fmt"
-	"os/exec"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/php"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/project"
 )
 
-func init() {
-	rootCmd.AddCommand(xdebugCmd)
-}
+func init() { rootCmd.AddCommand(xdebugCmd) }
 
 var xdebugCmd = &cobra.Command{
 	Use:   "xdebug [on|off]",
@@ -24,45 +24,35 @@ var xdebugCmd = &cobra.Command{
 			return err
 		}
 
-		action := args[0]
 		version := p.Config.PHP
-		fpmService := php.FPMServiceName(version)
+		iniDir := filepath.Join(config.GlobalDir(), "php", version, "conf.d")
+		iniPath := filepath.Join(iniDir, "xdebug.ini")
+		svc := docker.PHPServiceName(version)
 
-		switch action {
+		switch args[0] {
 		case "on":
 			fmt.Printf("Enabling Xdebug for PHP %s...\n", version)
-			if err := toggleXdebugModule(version, true); err != nil {
-				return err
+			if err := os.MkdirAll(iniDir, 0755); err != nil {
+				return fmt.Errorf("creating conf.d dir: %w", err)
+			}
+			ini := "zend_extension=xdebug\nxdebug.mode=debug\nxdebug.client_host=host.docker.internal\nxdebug.start_with_request=yes\n"
+			if err := os.WriteFile(iniPath, []byte(ini), 0644); err != nil {
+				return fmt.Errorf("writing xdebug.ini: %w", err)
 			}
 		case "off":
 			fmt.Printf("Disabling Xdebug for PHP %s...\n", version)
-			if err := toggleXdebugModule(version, false); err != nil {
-				return err
-			}
+			_ = os.Remove(iniPath) // may not exist
 		default:
 			return fmt.Errorf("usage: dev xdebug [on|off]")
 		}
 
-		// Restart PHP-FPM
-		fmt.Printf("  → Restarting %s...\n", fpmService)
-		if err := exec.Command("sudo", "systemctl", "restart", fpmService).Run(); err != nil {
-			return fmt.Errorf("restarting PHP-FPM: %w", err)
+		// Graceful PHP-FPM reload (no container restart)
+		fmt.Printf("  → Reloading PHP-FPM...\n")
+		if err := docker.Exec(svc, "/srv", "kill", "-USR2", "1"); err != nil {
+			return fmt.Errorf("reloading PHP-FPM: %w", err)
 		}
 
-		fmt.Printf("✓ Xdebug %s for PHP %s\n", action, version)
+		fmt.Printf("✓ Xdebug %s for PHP %s\n", args[0], version)
 		return nil
 	},
-}
-
-func toggleXdebugModule(phpVersion string, enable bool) error {
-	tool := "phpdismod"
-	if enable {
-		tool = "phpenmod"
-	}
-
-	cmd := exec.Command("sudo", tool, "-v", phpVersion, "xdebug")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%s: %s: %w", tool, string(output), err)
-	}
-	return nil
 }

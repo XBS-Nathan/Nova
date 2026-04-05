@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/db"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/project"
 )
@@ -33,7 +34,12 @@ var snapshotCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Creating snapshot of %s...\n", p.Config.DB)
-		store, err := db.NewStore(p.Config.DBConfig())
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
+		}
+		svcName := dbServiceForProject(p.Config, global)
+		store, err := db.NewStore(p.Config.DBConfig(), svcName)
 		if err != nil {
 			return err
 		}
@@ -84,7 +90,12 @@ var snapshotRestoreCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Restoring %s from %s...\n", p.Config.DB, filepath.Base(snapshotPath))
-		store, err := db.NewStore(p.Config.DBConfig())
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
+		}
+		svcName := dbServiceForProject(p.Config, global)
+		store, err := db.NewStore(p.Config.DBConfig(), svcName)
 		if err != nil {
 			return err
 		}

@@ -117,8 +117,21 @@ func TestPHPBin(t *testing.T) {
 }
 
 func TestSiteDomain(t *testing.T) {
-	p := &Project{Name: "xlinx-1"}
+	p := &Project{
+		Name:   "xlinx-1",
+		Config: &config.ProjectConfig{Domain: "xlinx-1.test"},
+	}
 	if got := p.SiteDomain(); got != "xlinx-1.test" {
 		t.Errorf("SiteDomain() = %q, want %q", got, "xlinx-1.test")
+	}
+}
+
+func TestSiteDomain_Custom(t *testing.T) {
+	p := &Project{
+		Name:   "xlinx-1",
+		Config: &config.ProjectConfig{Domain: "myapp.test"},
+	}
+	if got := p.SiteDomain(); got != "myapp.test" {
+		t.Errorf("SiteDomain() = %q, want %q", got, "myapp.test")
 	}
 }

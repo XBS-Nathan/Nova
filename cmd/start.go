@@ -1,18 +1,22 @@
 package cmd
 
 import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/caddy"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/docker"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/hosts"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/lifecycle"
-	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/php"
+	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/phpimage"
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/project"
 )
 
-func init() {
-	rootCmd.AddCommand(startCmd)
-}
+func init() { rootCmd.AddCommand(startCmd) }
 
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -23,10 +27,104 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
-		lc := &lifecycle.Lifecycle{
-			Docker: docker.Service{},
-			Caddy:  caddy.Service{},
+		global, err := config.LoadGlobal()
+		if err != nil {
+			return err
 		}
-		return lc.Start(p, php.FPMSocket(p.Config.PHP))
+
+		imgCfg := phpimage.ImageConfig{
+			PHPVersion: p.Config.PHP,
+			Extensions: p.Config.Extensions,
+		}
+		built, err := phpimage.EnsureBuilt(imgCfg)
+		if err != nil {
+			return err
+		}
+
+		php := []docker.PHPVersion{
+			{
+				Version:    p.Config.PHP,
+				Extensions: p.Config.Extensions,
+				Ports:      p.Config.Ports,
+			},
+		}
+
+		lc := newLifecycle(global, p.Config)
+		return lc.Start(p, php, built)
 	},
 }
+
+// nodeServiceForProject builds a ServiceDefinition for the project's
+// Node container if node_command is configured. Returns nil if not needed.
+func nodeServiceForProject(
+	p *project.Project,
+	global *config.GlobalConfig,
+) *config.ServiceDefinition {
+	if p.Config.NodeCommand == "" {
+		return nil
+	}
+
+	rel, err := filepath.Rel(global.ProjectsDir, p.Dir)
+	if err != nil {
+		rel = p.Name
+	}
+	workdir := filepath.Join("/srv", rel)
+
+	// Build the install + run command based on package manager
+	pm := p.Config.PackageManager
+	installCmd := "npm install"
+	switch pm {
+	case "yarn":
+		installCmd = "yarn install"
+	case "pnpm":
+		installCmd = "pnpm install"
+	}
+
+	cmd := fmt.Sprintf("cd %s && %s && %s", workdir, installCmd, p.Config.NodeCommand)
+
+	return &config.ServiceDefinition{
+		Image: fmt.Sprintf("node:%s-alpine", p.Config.Node),
+		Command: fmt.Sprintf("sh -c '%s'", strings.ReplaceAll(cmd, "'", "'\\''")),
+		Volumes: []string{
+			fmt.Sprintf("%s:/srv", global.ProjectsDir),
+		},
+		Environment: map[string]string{
+			"NODE_ENV": "development",
+		},
+	}
+}
+
+func newLifecycle(
+	global *config.GlobalConfig,
+	projectCfg *config.ProjectConfig,
+) *lifecycle.Lifecycle {
+	collected := config.CollectVersions(global.ProjectsDir, projectCfg)
+
+	dbServiceName := dbServiceForProject(projectCfg, global)
+
+	return &lifecycle.Lifecycle{
+		Docker: docker.Service{
+			ProjectsDir:      global.ProjectsDir,
+			Collected:        collected,
+			MailpitVersion:   global.Versions.Mailpit,
+			TypesenseVersion: global.Versions.Typesense,
+		},
+		Caddy:         caddy.Service{},
+		Hosts:         hosts.Service{},
+		PHPService:    docker.PHPServiceName,
+		DBServiceName:   dbServiceName,
+		ServiceVersions: global.Versions,
+		Docroot: func(p *project.Project) string {
+			rel, err := filepath.Rel(global.ProjectsDir, p.Dir)
+			if err != nil {
+				rel = p.Name
+			}
+			return filepath.Join("/srv", rel, "public")
+		},
+		NodeServiceBuilder: func(p *project.Project) *config.ServiceDefinition {
+			return nodeServiceForProject(p, global)
+		},
+	}
+}
+
+
