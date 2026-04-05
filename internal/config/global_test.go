@@ -1,0 +1,85 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestLoadGlobal_DefaultsWhenNoFile(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg, err := loadGlobal(dir)
+	if err != nil {
+		t.Fatalf("loadGlobal() error = %v", err)
+	}
+
+	home, _ := os.UserHomeDir()
+	wantProjectsDir := filepath.Join(home, "Projects")
+
+	if cfg.ProjectsDir != wantProjectsDir {
+		t.Errorf("ProjectsDir = %q, want %q", cfg.ProjectsDir, wantProjectsDir)
+	}
+	if len(cfg.PHPVersions) != 0 {
+		t.Errorf("PHPVersions = %v, want empty", cfg.PHPVersions)
+	}
+}
+
+func TestLoadGlobal_ParsesConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+projects_dir: /srv/projects
+php_versions:
+  - "8.1"
+  - "8.2"
+  - "8.3"
+`
+	if err := os.WriteFile(filepath.Join(dir, GlobalConfigFile), []byte(content), 0644); err != nil {
+		t.Fatalf("writing config file: %v", err)
+	}
+
+	cfg, err := loadGlobal(dir)
+	if err != nil {
+		t.Fatalf("loadGlobal() error = %v", err)
+	}
+
+	if cfg.ProjectsDir != "/srv/projects" {
+		t.Errorf("ProjectsDir = %q, want %q", cfg.ProjectsDir, "/srv/projects")
+	}
+	if len(cfg.PHPVersions) != 3 {
+		t.Fatalf("PHPVersions length = %d, want 3", len(cfg.PHPVersions))
+	}
+	if cfg.PHPVersions[0] != "8.1" {
+		t.Errorf("PHPVersions[0] = %q, want %q", cfg.PHPVersions[0], "8.1")
+	}
+	if cfg.PHPVersions[1] != "8.2" {
+		t.Errorf("PHPVersions[1] = %q, want %q", cfg.PHPVersions[1], "8.2")
+	}
+	if cfg.PHPVersions[2] != "8.3" {
+		t.Errorf("PHPVersions[2] = %q, want %q", cfg.PHPVersions[2], "8.3")
+	}
+}
+
+func TestLoadGlobal_ExpandsTilde(t *testing.T) {
+	dir := t.TempDir()
+	content := "projects_dir: ~/MyProjects\n"
+	if err := os.WriteFile(filepath.Join(dir, GlobalConfigFile), []byte(content), 0644); err != nil {
+		t.Fatalf("writing config file: %v", err)
+	}
+
+	cfg, err := loadGlobal(dir)
+	if err != nil {
+		t.Fatalf("loadGlobal() error = %v", err)
+	}
+
+	home, _ := os.UserHomeDir()
+	wantProjectsDir := filepath.Join(home, "MyProjects")
+
+	if strings.HasPrefix(cfg.ProjectsDir, "~/") {
+		t.Errorf("ProjectsDir = %q, tilde was not expanded", cfg.ProjectsDir)
+	}
+	if cfg.ProjectsDir != wantProjectsDir {
+		t.Errorf("ProjectsDir = %q, want %q", cfg.ProjectsDir, wantProjectsDir)
+	}
+}
