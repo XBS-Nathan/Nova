@@ -48,8 +48,7 @@ func ensureWithSudo(path, domain string) error {
 		return nil
 	}
 
-	line := entry + "\n"
-	cmd := exec.Command("sudo", "sh", "-c", fmt.Sprintf("echo %q >> %s", line, path))
+	cmd := exec.Command("sudo", "sh", "-c", fmt.Sprintf("echo '%s' >> %s", entry, path))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
