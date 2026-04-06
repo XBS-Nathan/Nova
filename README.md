@@ -14,15 +14,6 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 - **One Caddy container** — reverse proxy for all `*.test` domains with automatic local HTTPS (~15 MB)
 - **Shared database/cache containers** — one MySQL, Redis instance instead of one per project
 
-**RAM comparison for 5 projects:**
-
-| | Container-per-project | nova |
-|---|---|---|
-| Web/PHP | 5 x ~4 GB | ~300 MB total |
-| MySQL | 5 x ~500 MB | ~500 MB total |
-| Redis | 5 x ~10 MB | ~10 MB total |
-| **Total** | **~25 GB** | **~1.5 GB** |
-
 ## Requirements
 
 | | Linux/WSL2 | macOS |
