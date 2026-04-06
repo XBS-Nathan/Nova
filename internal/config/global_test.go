@@ -128,3 +128,43 @@ func TestLoadGlobal_ExpandsTilde(t *testing.T) {
 		t.Errorf("ProjectsDir = %q, want %q", cfg.ProjectsDir, wantProjectsDir)
 	}
 }
+
+func TestLoadGlobal_ParsesPhpIni(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+php_ini:
+  memory_limit: 1G
+  display_errors: "Off"
+`
+	os.WriteFile(filepath.Join(dir, GlobalConfigFile), []byte(content), 0644)
+
+	cfg, err := loadGlobal(dir)
+	if err != nil {
+		t.Fatalf("loadGlobal() error = %v", err)
+	}
+
+	if cfg.PhpIni["memory_limit"] != "1G" {
+		t.Errorf("PhpIni[memory_limit] = %q, want %q", cfg.PhpIni["memory_limit"], "1G")
+	}
+	if cfg.PhpIni["display_errors"] != "Off" {
+		t.Errorf("PhpIni[display_errors] = %q, want %q", cfg.PhpIni["display_errors"], "Off")
+	}
+}
+
+func TestLoadGlobal_ParsesMysqlCnf(t *testing.T) {
+	dir := t.TempDir()
+	content := `
+mysql_cnf:
+  innodb_buffer_pool_size: 256M
+`
+	os.WriteFile(filepath.Join(dir, GlobalConfigFile), []byte(content), 0644)
+
+	cfg, err := loadGlobal(dir)
+	if err != nil {
+		t.Fatalf("loadGlobal() error = %v", err)
+	}
+
+	if cfg.MysqlCnf["innodb_buffer_pool_size"] != "256M" {
+		t.Errorf("MysqlCnf[innodb_buffer_pool_size] = %q, want %q", cfg.MysqlCnf["innodb_buffer_pool_size"], "256M")
+	}
+}

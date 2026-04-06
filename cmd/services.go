@@ -37,6 +37,15 @@ var servicesUpCmd = &cobra.Command{
 		}
 		collected := config.CollectVersions(global.ProjectsDir, defaultCfg)
 
+		// Write runtime MySQL cnf overrides
+		mysqlCnf := config.MergeSettings(config.DefaultMysqlCnf, global.MysqlCnf, nil)
+		for k, v := range config.ProtectedMysqlCnf {
+			mysqlCnf[k] = v
+		}
+		if err := config.WriteMysqlCnf(config.GlobalDir(), mysqlCnf); err != nil {
+			return fmt.Errorf("writing my.cnf overrides: %w", err)
+		}
+
 		fmt.Println("Starting shared services...")
 		opts := docker.ComposeOptions{
 			ProjectsDir:      global.ProjectsDir,

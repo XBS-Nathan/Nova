@@ -146,6 +146,14 @@ func TestGenerateCompose_SharedServices(t *testing.T) {
 	}
 }
 
+func TestGenerateCompose_MountsMysqlConfD(t *testing.T) {
+	t.Parallel()
+	got := generateCompose(defaultOpts(t, "8.2"))
+	if !strings.Contains(got, "/mysql/conf.d:/etc/mysql/conf.d") {
+		t.Errorf("missing mysql conf.d mount in:\n%s", got)
+	}
+}
+
 func TestPHPServiceName(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

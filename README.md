@@ -189,6 +189,16 @@ hooks:
     - "php artisan horizon &"
   post-stop: []
 
+# PHP ini overrides (layered on top of dev-optimized defaults)
+php_ini:
+  memory_limit: 1G
+  upload_max_filesize: 500M
+
+# MySQL cnf overrides (layered on top of dev-optimized defaults)
+mysql_cnf:
+  innodb_buffer_pool_size: 1G
+  max_connections: 500
+
 # Per-project Docker services (only run when this project is started)
 services:
   typesense:
@@ -224,6 +234,14 @@ versions:
   mysql: "8.0"
   redis: latest
   mailpit: latest
+
+# PHP ini overrides (apply to all projects)
+php_ini:
+  memory_limit: 1G
+
+# MySQL cnf overrides (apply to all projects)
+mysql_cnf:
+  innodb_buffer_pool_size: 1G
 ```
 
 ### Directory structure
@@ -239,9 +257,13 @@ versions:
 │       └── 8.2/
 │           ├── Dockerfile     # Generated from extensions
 │           └── php.ini
+├── mysql/
+│   └── conf.d/
+│       └── dev-overrides.cnf  # Generated MySQL settings
 ├── php/
 │   └── 8.2/
 │       └── conf.d/
+│           ├── dev-overrides.ini  # Generated PHP settings
 │           └── xdebug.ini     # Written by dev xdebug on
 ├── docker-compose.yml         # Generated dynamically
 ├── config.yaml                # Global config

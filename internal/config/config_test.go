@@ -262,3 +262,47 @@ hooks:
 		t.Errorf("PostStop = %v, want [\"cleanup.sh\"]", cfg.Hooks.PostStop)
 	}
 }
+
+func TestLoad_ParsesPhpIni(t *testing.T) {
+	dir := t.TempDir()
+	yaml := `
+php_ini:
+  memory_limit: 1G
+  upload_max_filesize: 500M
+`
+	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.PhpIni["memory_limit"] != "1G" {
+		t.Errorf("PhpIni[memory_limit] = %q, want %q", cfg.PhpIni["memory_limit"], "1G")
+	}
+	if cfg.PhpIni["upload_max_filesize"] != "500M" {
+		t.Errorf("PhpIni[upload_max_filesize] = %q, want %q", cfg.PhpIni["upload_max_filesize"], "500M")
+	}
+}
+
+func TestLoad_ParsesMysqlCnf(t *testing.T) {
+	dir := t.TempDir()
+	yaml := `
+mysql_cnf:
+  max_connections: "500"
+  innodb_buffer_pool_size: 1G
+`
+	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.MysqlCnf["max_connections"] != "500" {
+		t.Errorf("MysqlCnf[max_connections] = %q, want %q", cfg.MysqlCnf["max_connections"], "500")
+	}
+	if cfg.MysqlCnf["innodb_buffer_pool_size"] != "1G" {
+		t.Errorf("MysqlCnf[innodb_buffer_pool_size] = %q, want %q", cfg.MysqlCnf["innodb_buffer_pool_size"], "1G")
+	}
+}

@@ -64,6 +64,8 @@ type ProjectConfig struct {
 	Hooks          Hooks                        `yaml:"hooks"`
 	SharedServices map[string]ServiceDefinition `yaml:"shared_services"`
 	Services       map[string]ServiceDefinition `yaml:"services"`
+	PhpIni         map[string]string            `yaml:"php_ini"`
+	MysqlCnf       map[string]string            `yaml:"mysql_cnf"`
 }
 
 // DBConfig returns a unified database config for the db package.

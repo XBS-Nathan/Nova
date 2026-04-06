@@ -228,6 +228,7 @@ func generateCompose(opts ComposeOptions) string {
 		b.WriteString("      MYSQL_ROOT_HOST: '%'\n")
 		b.WriteString("    volumes:\n")
 		fmt.Fprintf(&b, "      - %s:/var/lib/mysql\n", volName)
+		fmt.Fprintf(&b, "      - %s/mysql/conf.d:/etc/mysql/conf.d\n", globalDir)
 		b.WriteString("    healthcheck:\n")
 		b.WriteString("      test: [\"CMD\", \"mysqladmin\", \"ping\", \"-h\", \"127.0.0.1\", \"-uroot\", \"-proot\", \"--ssl-mode=DISABLED\"]\n")
 		b.WriteString("      interval: 2s\n")

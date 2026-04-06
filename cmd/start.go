@@ -32,6 +32,21 @@ var startCmd = &cobra.Command{
 			return err
 		}
 
+		// Write runtime PHP ini overrides
+		phpIni := config.MergeSettings(config.DefaultPhpIni, global.PhpIni, p.Config.PhpIni)
+		if err := config.WritePhpIni(config.GlobalDir(), p.Config.PHP, phpIni); err != nil {
+			return fmt.Errorf("writing php.ini overrides: %w", err)
+		}
+
+		// Write runtime MySQL cnf overrides
+		mysqlCnf := config.MergeSettings(config.DefaultMysqlCnf, global.MysqlCnf, p.Config.MysqlCnf)
+		for k, v := range config.ProtectedMysqlCnf {
+			mysqlCnf[k] = v
+		}
+		if err := config.WriteMysqlCnf(config.GlobalDir(), mysqlCnf); err != nil {
+			return fmt.Errorf("writing my.cnf overrides: %w", err)
+		}
+
 		imgCfg := phpimage.ImageConfig{
 			PHPVersion: p.Config.PHP,
 			Extensions: p.Config.Extensions,

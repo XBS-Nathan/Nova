@@ -28,9 +28,11 @@ type ServiceVersions struct {
 
 // GlobalConfig holds user-level configuration from ~/.dev/config.yaml.
 type GlobalConfig struct {
-	ProjectsDir string          `yaml:"projects_dir"`
-	PHPVersions []string        `yaml:"php_versions"`
-	Versions    ServiceVersions `yaml:"versions"`
+	ProjectsDir string            `yaml:"projects_dir"`
+	PHPVersions []string          `yaml:"php_versions"`
+	Versions    ServiceVersions   `yaml:"versions"`
+	PhpIni      map[string]string `yaml:"php_ini"`
+	MysqlCnf    map[string]string `yaml:"mysql_cnf"`
 }
 
 // loadGlobal reads devDir/config.yaml and returns a GlobalConfig with defaults applied.
