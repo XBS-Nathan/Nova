@@ -64,7 +64,7 @@ nova init
   ? Version (8.0):
   ? Name (my_project):
 
-  ✓ Created .nova.yaml
+  ✓ Created .nova/config.yaml
   Run nova start to get going.
 ```
 
@@ -95,7 +95,7 @@ nova trust
 | Command | Description |
 |---------|-------------|
 | **Setup** | |
-| `nova init` | Create a `.nova.yaml` config for the current project (interactive) |
+| `nova init` | Create a `.nova/config.yaml` config for the current project (interactive) |
 | `nova trust` | Trust the Caddy local CA certificate for HTTPS |
 | `nova build` | Force rebuild PHP images |
 | **Lifecycle** | |
@@ -138,9 +138,9 @@ nova completion fish > ~/.config/fish/completions/nova.fish
 
 ## Configuration
 
-> **Note:** If your project uses per-project `services:`, `nova` creates a `.nova/` directory in the project root to store a generated `docker-compose.yml`. Add `.nova/` to your `.gitignore`.
+> **Note:** `nova` creates a `.nova/` directory in the project root. `nova init` adds a `.gitignore` that tracks `config.yaml` but excludes generated files like `docker-compose.yml`.
 
-### Per-project: `.nova.yaml`
+### Per-project: `.nova/config.yaml`
 
 Created by `nova init` or manually. Everything is optional — sensible defaults are used.
 
@@ -269,7 +269,7 @@ mysql_cnf:
 
 ## Shared Services
 
-By default, MySQL, Redis, and Mailpit are shared across all projects. You can also define custom shared services in any project's `.nova.yaml` under `shared_services:`. Unlike per-project `services:` (which only run when that project is started), shared services run once and are available to all projects.
+By default, MySQL, Redis, and Mailpit are shared across all projects. You can also define custom shared services in any project's `.nova/config.yaml` under `shared_services:`. Unlike per-project `services:` (which only run when that project is started), shared services run once and are available to all projects.
 
 ```bash
 # Start all shared services (MySQL, Redis, Mailpit, + custom)
@@ -279,7 +279,7 @@ nova services up
 nova services down
 ```
 
-When you run `nova services up`, it scans every `.nova.yaml` in your projects directory and collects all `shared_services` definitions. If multiple projects define the same service name, the first definition wins — they share a single container.
+When you run `nova services up`, it scans every `.nova/config.yaml` in your projects directory and collects all `shared_services` definitions. If multiple projects define the same service name, the first definition wins — they share a single container.
 
 This is useful for services like search engines, message queues, or monitoring tools that multiple projects depend on.
 

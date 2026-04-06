@@ -13,8 +13,8 @@ const (
 	DefaultPHP            = "8.2"
 	DefaultNode           = "22"
 	DefaultPackageManager = "npm"
-	NovaDir               = ".nova"
-	ConfigFile            = ".nova.yaml"
+	NovaDir    = ".nova"
+	ConfigFile = ".nova/config.yaml"
 )
 
 // GlobalDir returns ~/.nova, creating it and its subdirectories if needed.

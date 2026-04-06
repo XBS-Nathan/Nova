@@ -38,6 +38,7 @@ func TestDetect_FindsComposerJson(t *testing.T) {
 
 func TestDetect_FindsDevYaml(t *testing.T) {
 	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, ".nova"), 0755)
 	os.WriteFile(filepath.Join(dir, config.ConfigFile), []byte(`php: "8.1"`), 0644)
 
 	chdirTest(t, dir)

@@ -17,7 +17,7 @@ func init() { rootCmd.AddCommand(initCmd) }
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create a .nova.yaml config for the current project",
+	Short: "Create a .nova/config.yaml for the current project",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -27,6 +27,12 @@ var initCmd = &cobra.Command{
 		path := filepath.Join(cwd, config.ConfigFile)
 		if _, err := os.Stat(path); err == nil {
 			return fmt.Errorf("%s already exists — edit it directly or delete it first", config.ConfigFile)
+		}
+
+		// Create .nova/ directory
+		novaDir := filepath.Join(cwd, ".nova")
+		if err := os.MkdirAll(novaDir, 0755); err != nil {
+			return fmt.Errorf("creating .nova directory: %w", err)
 		}
 
 		projectName := filepath.Base(cwd)
@@ -112,6 +118,12 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("writing %s: %w", config.ConfigFile, err)
 		}
 
+		// Create .gitignore to exclude generated files but keep config
+		gitignore := "*\n!config.yaml\n!.gitignore\n"
+		if err := os.WriteFile(filepath.Join(novaDir, ".gitignore"), []byte(gitignore), 0644); err != nil {
+			return fmt.Errorf("writing .nova/.gitignore: %w", err)
+		}
+
 		// Summary
 		fmt.Println("  \033[1mSummary\033[0m")
 		fmt.Printf("  \033[2m├─\033[0m Type:     %s\n", projectType)
@@ -129,7 +141,7 @@ var initCmd = &cobra.Command{
 	},
 }
 
-// initConfig controls which fields are written to .nova.yaml.
+// initConfig controls which fields are written to .nova/config.yaml.
 type initConfig struct {
 	Type           string `yaml:"type,omitempty"`
 	Domain         string `yaml:"domain"`

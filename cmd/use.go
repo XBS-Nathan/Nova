@@ -55,7 +55,7 @@ var useDbDriverCmd = &cobra.Command{
 	},
 }
 
-// setConfigField reads the existing .nova.yaml (or creates one), sets a field, and writes it back.
+// setConfigField reads the existing .nova/config.yaml (or creates one), sets a field, and writes it back.
 func setConfigField(key, value string) error {
 	p, err := project.Detect()
 	if err != nil {

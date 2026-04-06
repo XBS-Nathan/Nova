@@ -6,6 +6,13 @@ import (
 	"testing"
 )
 
+// writeTestConfig creates the .nova/ directory and writes a config file in a temp dir.
+func writeTestConfig(t *testing.T, dir, content string) {
+	t.Helper()
+	os.MkdirAll(filepath.Join(dir, ".nova"), 0755)
+	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(content), 0644)
+}
+
 func TestDbNameFromDir(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -136,7 +143,7 @@ hooks:
   post-stop:
     - "cleanup.sh"
 `
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+	writeTestConfig(t, dir, yaml)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -168,7 +175,7 @@ hooks:
 
 func TestLoad_PartialConfig_FillsDefaults(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(`php: "8.1"`), 0644)
+	writeTestConfig(t, dir, `php: "8.1"`)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -211,7 +218,7 @@ func TestLoad_LaravelAutoDetect(t *testing.T) {
 
 func TestLoad_InvalidYAML(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte("{{invalid yaml"), 0644)
+	writeTestConfig(t, dir, "{{invalid yaml")
 
 	_, err := Load(dir)
 	if err == nil {
@@ -226,7 +233,7 @@ extensions:
   - imagick
   - swoole
 `
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+	writeTestConfig(t, dir, yaml)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -251,7 +258,7 @@ hooks:
   post-stop:
     - "cleanup.sh"
 `
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+	writeTestConfig(t, dir, yaml)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -270,7 +277,7 @@ php_ini:
   memory_limit: 1G
   upload_max_filesize: 500M
 `
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+	writeTestConfig(t, dir, yaml)
 
 	cfg, err := Load(dir)
 	if err != nil {
@@ -292,7 +299,7 @@ mysql_cnf:
   max_connections: "500"
   innodb_buffer_pool_size: 1G
 `
-	os.WriteFile(filepath.Join(dir, ConfigFile), []byte(yaml), 0644)
+	writeTestConfig(t, dir, yaml)
 
 	cfg, err := Load(dir)
 	if err != nil {
