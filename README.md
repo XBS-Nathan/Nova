@@ -1,10 +1,14 @@
-# dev
+<p align="center">
+  <img src="logo.png" alt="nova" width="200">
+</p>
 
-A fast, lightweight PHP development environment for Linux and macOS. Uses shared Docker containers (PHP-FPM, Caddy, MySQL, Redis) to keep RAM usage minimal across many projects. Only requires Docker on the host.
+<h1 align="center">nova</h1>
+
+<p align="center">A fast, lightweight PHP development environment for Linux and macOS.<br>Uses shared Docker containers (PHP-FPM, Caddy, MySQL, Redis) to keep RAM usage minimal across many projects. Only requires Docker on the host.</p>
 
 ## Why
 
-When working on multiple branches simultaneously via git worktrees, traditional container-per-project setups eat RAM fast (~6 GB each). `dev` takes a different approach:
+When working on multiple branches simultaneously via git worktrees, traditional container-per-project setups eat RAM fast (~6 GB each). `nova` takes a different approach:
 
 - **One PHP-FPM container per version** — shared across all projects (~150 MB each)
 - **One Caddy container** — reverse proxy for all `*.test` domains with automatic local HTTPS (~15 MB)
@@ -12,7 +16,7 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 
 **RAM comparison for 5 projects:**
 
-| | Container-per-project | dev |
+| | Container-per-project | nova |
 |---|---|---|
 | Web/PHP | 5 x ~4 GB | ~300 MB total |
 | MySQL | 5 x ~500 MB | ~500 MB total |
@@ -35,23 +39,23 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 ```bash
 git clone https://github.com/XBS-Nathan/nova.git
 cd nova
-go build -o dev .
+go build -o nova .
 
 # Add to PATH
-sudo mv dev /usr/local/bin/
+sudo mv nova /usr/local/bin/
 ```
 
 ### 2. Set up a project
 
 ```bash
 cd /path/to/your/project
-dev init
+nova init
 ```
 
-`dev init` walks you through an interactive setup:
+`nova init` walks you through an interactive setup:
 
 ```
-  dev init — my-project
+  nova init — my-project
 
   ✓ Detected laravel project
 
@@ -69,14 +73,14 @@ dev init
   ? Version (8.0):
   ? Name (my_project):
 
-  ✓ Created .dev.yaml
-  Run dev start to get going.
+  ✓ Created .nova.yaml
+  Run nova start to get going.
 ```
 
 ### 3. Start the project
 
 ```bash
-dev start
+nova start
 ```
 
 First run builds the PHP Docker image (takes a minute), then starts everything. Subsequent starts are instant.
@@ -84,68 +88,68 @@ First run builds the PHP Docker image (takes a minute), then starts everything. 
 ### 4. Trust HTTPS (one-time)
 
 ```bash
-dev trust
+nova trust
 ```
 
-`dev start` will remind you if you haven't done this yet.
+`nova start` will remind you if you haven't done this yet.
 
 ### WSL2
 
-`dev trust` automatically detects WSL2 and:
+`nova trust` automatically detects WSL2 and:
 - Installs the Caddy CA cert in both Linux and Windows trust stores
-- `dev start` adds hosts entries to both `/etc/hosts` and the Windows hosts file
+- `nova start` adds hosts entries to both `/etc/hosts` and the Windows hosts file
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
 | **Setup** | |
-| `dev init` | Create a `.dev.yaml` config for the current project (interactive) |
-| `dev trust` | Trust the Caddy local CA certificate for HTTPS |
-| `dev build` | Force rebuild PHP images |
+| `nova init` | Create a `.nova.yaml` config for the current project (interactive) |
+| `nova trust` | Trust the Caddy local CA certificate for HTTPS |
+| `nova build` | Force rebuild PHP images |
 | **Lifecycle** | |
-| `dev start` | Start the current project |
-| `dev stop` | Stop the current project |
-| `dev restart` | Stop + start |
-| `dev down` | Stop all containers |
+| `nova start` | Start the current project |
+| `nova stop` | Stop the current project |
+| `nova restart` | Stop + start |
+| `nova down` | Stop all containers |
 | **Run commands** | |
-| `dev artisan [args]` | Run `php artisan` inside the PHP container (Laravel) |
-| `dev composer [args]` | Run `composer` inside the PHP container |
-| `dev exec [command...]` | Run any command in the project's PHP container |
+| `nova artisan [args]` | Run `php artisan` inside the PHP container (Laravel) |
+| `nova composer [args]` | Run `composer` inside the PHP container |
+| `nova exec [command...]` | Run any command in the project's PHP container |
 | **Database** | |
-| `dev snapshot [name]` | Create a database snapshot |
-| `dev snapshot restore [name]` | Restore from a snapshot (latest if no name) |
-| `dev snapshot list` | List available snapshots |
+| `nova snapshot [name]` | Create a database snapshot |
+| `nova snapshot restore [name]` | Restore from a snapshot (latest if no name) |
+| `nova snapshot list` | List available snapshots |
 | **Debugging** | |
-| `dev logs [service]` | Stream container logs (all or specific service) |
-| `dev xdebug on/off` | Toggle Xdebug (sub-second, no container restart) |
-| `dev info` | Show project URL, PHP version, DB, service status |
+| `nova logs [service]` | Stream container logs (all or specific service) |
+| `nova xdebug on/off` | Toggle Xdebug (sub-second, no container restart) |
+| `nova info` | Show project URL, PHP version, DB, service status |
 | **Config** | |
-| `dev use php <version>` | Set the PHP version for this project |
-| `dev use node <version>` | Set the Node version for this project |
-| `dev use db <mysql\|postgres>` | Set the database driver |
+| `nova use php <version>` | Set the PHP version for this project |
+| `nova use node <version>` | Set the Node version for this project |
+| `nova use db <mysql\|postgres>` | Set the database driver |
 | **Other** | |
-| `dev share` | Share via Cloudflare Tunnel or ngrok |
-| `dev services up/down` | Start/stop shared Docker services |
+| `nova share` | Share via Cloudflare Tunnel or ngrok |
+| `nova services up/down` | Start/stop shared Docker services |
 
 ### Shell completions
 
 ```bash
 # Bash
-dev completion bash > ~/.local/share/bash-completion/completions/dev
+nova completion bash > ~/.local/share/bash-completion/completions/nova
 
 # Zsh
-dev completion zsh > ~/.zsh/completions/_dev
+nova completion zsh > ~/.zsh/completions/_nova
 
 # Fish
-dev completion fish > ~/.config/fish/completions/dev.fish
+nova completion fish > ~/.config/fish/completions/nova.fish
 ```
 
 ## Configuration
 
-### Per-project: `.dev.yaml`
+### Per-project: `.nova.yaml`
 
-Created by `dev init` or manually. Everything is optional — sensible defaults are used.
+Created by `nova init` or manually. Everything is optional — sensible defaults are used.
 
 ```yaml
 # Project type (auto-detected: laravel or generic)
@@ -180,7 +184,7 @@ extensions:
 ports:
   - "8080"
 
-# Node.js command to run on dev start
+# Node.js command to run on nova start
 node_command: yarn run hot
 
 # Hooks run inside the PHP container after start/stop
@@ -221,9 +225,9 @@ shared_services:
       MEILI_NO_ANALYTICS: "true"
 ```
 
-### Global: `~/.dev/config.yaml`
+### Global: `~/.nova/config.yaml`
 
-Optional. Created automatically with defaults on first `dev start`.
+Optional. Created automatically with defaults on first `nova start`.
 
 ```yaml
 # Parent directory mounted into containers (default: ~/Projects)
@@ -247,7 +251,7 @@ mysql_cnf:
 ### Directory structure
 
 ```
-~/.dev/
+~/.nova/
 ├── caddy/
 │   ├── Caddyfile              # Main config (auto-generated)
 │   ├── data/                  # Caddy CA certificates
@@ -259,12 +263,12 @@ mysql_cnf:
 │           └── php.ini
 ├── mysql/
 │   └── conf.d/
-│       └── dev-overrides.cnf  # Generated MySQL settings
+│       └── nova-overrides.cnf  # Generated MySQL settings
 ├── php/
 │   └── 8.2/
 │       └── conf.d/
-│           ├── dev-overrides.ini  # Generated PHP settings
-│           └── xdebug.ini     # Written by dev xdebug on
+│           ├── nova-overrides.ini  # Generated PHP settings
+│           └── xdebug.ini     # Written by nova xdebug on
 ├── docker-compose.yml         # Generated dynamically
 ├── config.yaml                # Global config
 └── snapshots/                 # Database snapshots
@@ -272,17 +276,17 @@ mysql_cnf:
 
 ## Shared Services
 
-By default, MySQL, Redis, and Mailpit are shared across all projects. You can also define custom shared services in any project's `.dev.yaml` under `shared_services:`. Unlike per-project `services:` (which only run when that project is started), shared services run once and are available to all projects.
+By default, MySQL, Redis, and Mailpit are shared across all projects. You can also define custom shared services in any project's `.nova.yaml` under `shared_services:`. Unlike per-project `services:` (which only run when that project is started), shared services run once and are available to all projects.
 
 ```bash
 # Start all shared services (MySQL, Redis, Mailpit, + custom)
-dev services up
+nova services up
 
 # Stop all shared services
-dev services down
+nova services down
 ```
 
-When you run `dev services up`, it scans every `.dev.yaml` in your projects directory and collects all `shared_services` definitions. If multiple projects define the same service name, the first definition wins — they share a single container.
+When you run `nova services up`, it scans every `.nova.yaml` in your projects directory and collects all `shared_services` definitions. If multiple projects define the same service name, the first definition wins — they share a single container.
 
 This is useful for services like search engines, message queues, or monitoring tools that multiple projects depend on.
 
@@ -298,7 +302,7 @@ Browser → project.test → /etc/hosts → 127.0.0.1
                                 MySQL / Redis (Docker)
 ```
 
-1. **DNS**: `dev start` adds `127.0.0.1 project.test` to `/etc/hosts` (+ Windows hosts on WSL2)
+1. **DNS**: `nova start` adds `127.0.0.1 project.test` to `/etc/hosts` (+ Windows hosts on WSL2)
 2. **Caddy**: Routes each `*.test` domain to the correct PHP-FPM container. Automatic local HTTPS via built-in CA.
 3. **PHP-FPM**: One container per PHP version with Node.js included. Extensions configurable per project. Xdebug toggled via mounted ini + FPM reload signal.
 4. **Docker Compose**: Generated dynamically — only starts services the project needs.
@@ -312,13 +316,13 @@ Snapshots use parallel tools for speed when available:
 | MySQL | `mydumper` (4 threads) | `myloader` (4 threads) | `mysqldump`/`mysql` + gzip |
 | Postgres | `pg_dump -Fd -j4` (lz4) | `pg_restore -j4` | -- (built-in) |
 
-You can also drop `.sql` or `.sql.gz` files into `~/.dev/snapshots/<db_name>/` and restore them with `dev snapshot restore <filename>`.
+You can also drop `.sql` or `.sql.gz` files into `~/.nova/snapshots/<db_name>/` and restore them with `nova snapshot restore <filename>`.
 
 ## Building from source
 
 ```bash
 # Requires Go 1.25+
-go build -o dev .
+go build -o nova .
 ```
 
 ### Run tests

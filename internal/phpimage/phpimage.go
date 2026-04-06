@@ -91,7 +91,7 @@ func buildImage(cfg ImageConfig, noCache bool) error {
 // ImageTag returns the Docker image tag for an image config.
 func ImageTag(cfg ImageConfig) string {
 	hash := imageHash(cfg)
-	return fmt.Sprintf("dev-php:%s-%s", cfg.PHPVersion, hash)
+	return fmt.Sprintf("nova-php:%s-%s", cfg.PHPVersion, hash)
 }
 
 func writeDockerfile(cfg ImageConfig) (string, error) {

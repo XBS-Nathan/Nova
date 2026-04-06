@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "dev",
+	Use:   "nova",
 	Short: "Lightweight PHP development environment",
 	Long:  "A fast, lightweight PHP development environment for Linux and macOS.",
 }

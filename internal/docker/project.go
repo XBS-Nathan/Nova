@@ -11,9 +11,9 @@ import (
 	"github.com/XBS-Nathan/nova/internal/config"
 )
 
-// ProjectComposeDir returns the .dev directory inside a project, creating it if needed.
+// ProjectComposeDir returns the .nova directory inside a project, creating it if needed.
 func ProjectComposeDir(projectDir string) string {
-	dir := filepath.Join(projectDir, ".dev")
+	dir := filepath.Join(projectDir, ".nova")
 	os.MkdirAll(dir, 0755)
 	return dir
 }
@@ -99,7 +99,7 @@ func GenerateProjectCompose(services map[string]config.ServiceDefinition) string
 		}
 
 		b.WriteString("    networks:\n")
-		b.WriteString("      - dev\n")
+		b.WriteString("      - nova\n")
 		b.WriteString("\n")
 	}
 
@@ -123,7 +123,7 @@ func GenerateProjectCompose(services map[string]config.ServiceDefinition) string
 	}
 
 	b.WriteString("networks:\n")
-	b.WriteString("  dev:\n")
+	b.WriteString("  nova:\n")
 	b.WriteString("    external: true\n")
 
 	return b.String()
@@ -139,7 +139,7 @@ func projectCompose(projectName, projectDir string, args ...string) error {
 	fullArgs := append([]string{
 		"compose",
 		"-f", composeFile,
-		"-p", fmt.Sprintf("dev-%s", projectName),
+		"-p", fmt.Sprintf("nova-%s", projectName),
 	}, args...)
 
 	cmd := exec.Command("docker", fullArgs...)

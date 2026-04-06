@@ -37,7 +37,7 @@ func TestGenerateProjectCompose_SingleService(t *testing.T) {
 		"ACCEPT_EULA:",
 		"MSSQL_SA_PASSWORD:",
 		"networks:",
-		"dev:",
+		"nova:",
 		"external: true",
 	}
 	for _, check := range checks {
@@ -106,7 +106,7 @@ func TestGenerateProjectCompose_WithVolumes(t *testing.T) {
 func TestProjectComposeFile(t *testing.T) {
 	dir := t.TempDir()
 	path := ProjectComposeFile(dir)
-	want := filepath.Join(dir, ".dev", "docker-compose.yml")
+	want := filepath.Join(dir, ".nova", "docker-compose.yml")
 	if path != want {
 		t.Errorf("ProjectComposeFile() = %q, want %q", path, want)
 	}

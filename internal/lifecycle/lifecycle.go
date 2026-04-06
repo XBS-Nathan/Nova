@@ -186,7 +186,7 @@ func (l *Lifecycle) Start(p *project.Project, php []docker.PHPVersion, forceRecr
 		fmt.Println()
 		pterm.Info.Println(
 			"HTTPS won't work until you trust the CA certificate.\n" +
-				"  Run: " + pterm.LightCyan("dev trust"),
+				"  Run: " + pterm.LightCyan("nova trust"),
 		)
 	}
 
@@ -268,11 +268,11 @@ func (l *Lifecycle) spin(msg string, fn func() error) error {
 
 // hookPrefix returns the naming prefix for a project's background processes.
 func hookPrefix(projectName string) string {
-	return "dev:" + projectName + ":"
+	return "nova:" + projectName + ":"
 }
 
 // wrapHookCommand wraps a background hook command so it can be identified
-// and killed by project name on dev stop. Foreground hooks run as-is.
+// and killed by project name on nova stop. Foreground hooks run as-is.
 func wrapHookCommand(projectName string, index int, hook string) string {
 	hook = strings.TrimSpace(hook)
 	if !strings.HasSuffix(hook, "&") {

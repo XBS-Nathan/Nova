@@ -17,7 +17,7 @@ func init() { rootCmd.AddCommand(initCmd) }
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create a .dev.yaml config for the current project",
+	Short: "Create a .nova.yaml config for the current project",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -42,7 +42,7 @@ var initCmd = &cobra.Command{
 		}
 
 		fmt.Println()
-		fmt.Printf("  \033[1mdev init\033[0m — %s\n", projectName)
+		fmt.Printf("  \033[1mnova init\033[0m — %s\n", projectName)
 		fmt.Println()
 
 		// Auto-detect project type
@@ -122,14 +122,14 @@ var initCmd = &cobra.Command{
 		fmt.Printf("  \033[2m└─\033[0m Redis:    %s\n", redisVersion)
 		fmt.Println()
 		fmt.Printf("  \033[32m✓\033[0m Created %s\n", config.ConfigFile)
-		fmt.Printf("  Run \033[1mdev start\033[0m to get going.\n")
+		fmt.Printf("  Run \033[1mnova start\033[0m to get going.\n")
 		fmt.Println()
 
 		return nil
 	},
 }
 
-// initConfig controls which fields are written to .dev.yaml.
+// initConfig controls which fields are written to .nova.yaml.
 type initConfig struct {
 	Type           string `yaml:"type,omitempty"`
 	Domain         string `yaml:"domain"`

@@ -24,7 +24,7 @@ var projectMarkers = []string{
 }
 
 // Detect finds the project from the current working directory.
-// It walks up looking for .dev.yaml or common project root markers.
+// It walks up looking for .nova.yaml or common project root markers.
 func Detect() (*Project, error) {
 	dir, err := os.Getwd()
 	if err != nil {

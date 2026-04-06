@@ -295,8 +295,8 @@ func TestStop_RunsHooksViaDockerExec(t *testing.T) {
 	if pkillCall[2] != "pkill" {
 		t.Errorf("first Exec should be pkill, got %v", pkillCall[2:])
 	}
-	if !strings.Contains(pkillCall[4], "dev:myapp:") {
-		t.Errorf("pkill pattern = %q, want to contain %q", pkillCall[4], "dev:myapp:")
+	if !strings.Contains(pkillCall[4], "nova:myapp:") {
+		t.Errorf("pkill pattern = %q, want to contain %q", pkillCall[4], "nova:myapp:")
 	}
 
 	// Verify hook call
@@ -322,16 +322,16 @@ func TestStop_KillsBackgroundProcessesByProjectName(t *testing.T) {
 		t.Fatal("Docker.Exec() not called")
 	}
 	call := d.execCalls[0]
-	if call[2] != "pkill" || call[3] != "-f" || call[4] != "dev:myapp:" {
-		t.Errorf("pkill call = %v, want [pkill -f dev:myapp:]", call[2:])
+	if call[2] != "pkill" || call[3] != "-f" || call[4] != "nova:myapp:" {
+		t.Errorf("pkill call = %v, want [pkill -f nova:myapp:]", call[2:])
 	}
 }
 
 func TestWrapHookCommand_BackgroundHookGetsMarker(t *testing.T) {
 	got := wrapHookCommand("myapp", 0, "php artisan horizon &")
 
-	if !strings.Contains(got, "#dev:myapp:0") {
-		t.Errorf("expected comment marker dev:myapp:0, got: %s", got)
+	if !strings.Contains(got, "#nova:myapp:0") {
+		t.Errorf("expected comment marker nova:myapp:0, got: %s", got)
 	}
 	if !strings.Contains(got, "php artisan horizon") {
 		t.Errorf("expected original command, got: %s", got)

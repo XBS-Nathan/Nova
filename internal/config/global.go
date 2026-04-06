@@ -26,7 +26,7 @@ type ServiceVersions struct {
 	Mailpit  string `yaml:"mailpit"`
 }
 
-// GlobalConfig holds user-level configuration from ~/.dev/config.yaml.
+// GlobalConfig holds user-level configuration from ~/.nova/config.yaml.
 type GlobalConfig struct {
 	ProjectsDir string            `yaml:"projects_dir"`
 	PHPVersions []string          `yaml:"php_versions"`
@@ -87,7 +87,7 @@ func fillServiceVersionDefaults(v *ServiceVersions) {
 	}
 }
 
-// LoadGlobal reads ~/.dev/config.yaml and returns a GlobalConfig with defaults applied.
+// LoadGlobal reads ~/.nova/config.yaml and returns a GlobalConfig with defaults applied.
 func LoadGlobal() (*GlobalConfig, error) {
 	return loadGlobal(GlobalDir())
 }

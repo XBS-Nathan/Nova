@@ -190,7 +190,7 @@ func generateCompose(opts ComposeOptions) string {
 	fmt.Fprintf(&b, "      - %s/caddy:/etc/caddy\n", globalDir)
 	fmt.Fprintf(&b, "      - %s/caddy/data:/data\n", globalDir)
 	fmt.Fprintf(&b, "      - %s:/srv\n", opts.ProjectsDir)
-	b.WriteString("    networks: [dev]\n\n")
+	b.WriteString("    networks: [nova]\n\n")
 
 	// PHP (one per version)
 	for _, php := range opts.PHP {
@@ -208,7 +208,7 @@ func generateCompose(opts ComposeOptions) string {
 		fmt.Fprintf(&b, "      - %s:/srv\n", opts.ProjectsDir)
 		fmt.Fprintf(&b, "      - %s/php/%s/conf.d:/usr/local/etc/php/conf.custom\n",
 			globalDir, php.Version)
-		b.WriteString("    networks: [dev]\n\n")
+		b.WriteString("    networks: [nova]\n\n")
 	}
 
 	// MySQL (one per version)
@@ -235,7 +235,7 @@ func generateCompose(opts ComposeOptions) string {
 		b.WriteString("      timeout: 5s\n")
 		b.WriteString("      retries: 60\n")
 		b.WriteString("      start_period: 10s\n")
-		b.WriteString("    networks: [dev]\n\n")
+		b.WriteString("    networks: [nova]\n\n")
 		volumes = append(volumes, volName)
 	}
 
@@ -261,7 +261,7 @@ func generateCompose(opts ComposeOptions) string {
 		b.WriteString("      timeout: 5s\n")
 		b.WriteString("      retries: 60\n")
 		b.WriteString("      start_period: 10s\n")
-		b.WriteString("    networks: [dev]\n\n")
+		b.WriteString("    networks: [nova]\n\n")
 		volumes = append(volumes, volName)
 	}
 
@@ -278,7 +278,7 @@ func generateCompose(opts ComposeOptions) string {
 		b.WriteString("    command: redis-server --appendonly yes\n")
 		b.WriteString("    volumes:\n")
 		fmt.Fprintf(&b, "      - %s:/data\n", volName)
-		b.WriteString("    networks: [dev]\n\n")
+		b.WriteString("    networks: [nova]\n\n")
 		volumes = append(volumes, volName)
 	}
 
@@ -289,7 +289,7 @@ func generateCompose(opts ComposeOptions) string {
 	b.WriteString("    ports:\n")
 	b.WriteString("      - \"1025:1025\"\n")
 	b.WriteString("      - \"8025:8025\"\n")
-	b.WriteString("    networks: [dev]\n\n")
+	b.WriteString("    networks: [nova]\n\n")
 
 	// Shared services (collected from all projects' shared_services)
 	sharedNames := make([]string, 0, len(opts.SharedServices))
@@ -341,7 +341,7 @@ func generateCompose(opts ComposeOptions) string {
 			}
 		}
 
-		b.WriteString("    networks: [dev]\n\n")
+		b.WriteString("    networks: [nova]\n\n")
 	}
 
 	// Volumes (only for included services)
@@ -352,8 +352,8 @@ func generateCompose(opts ComposeOptions) string {
 	b.WriteString("\n")
 
 	b.WriteString("networks:\n")
-	b.WriteString("  dev:\n")
-	b.WriteString("    name: dev\n")
+	b.WriteString("  nova:\n")
+	b.WriteString("    name: nova\n")
 
 	return b.String()
 }

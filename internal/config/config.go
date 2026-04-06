@@ -13,18 +13,18 @@ const (
 	DefaultPHP            = "8.2"
 	DefaultNode           = "22"
 	DefaultPackageManager = "npm"
-	DevDir                = ".dev"
-	ConfigFile            = ".dev.yaml"
+	NovaDir               = ".nova"
+	ConfigFile            = ".nova.yaml"
 )
 
-// GlobalDir returns ~/.dev, creating it if needed.
+// GlobalDir returns ~/.nova, creating it if needed.
 func GlobalDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot determine home directory: %v\n", err)
 		os.Exit(1)
 	}
-	dir := filepath.Join(home, DevDir)
+	dir := filepath.Join(home, NovaDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot create %s: %v\n", dir, err)
 		os.Exit(1)
@@ -32,7 +32,7 @@ func GlobalDir() string {
 	return dir
 }
 
-// SnapshotDir returns ~/.dev/snapshots, creating it if needed.
+// SnapshotDir returns ~/.nova/snapshots, creating it if needed.
 func SnapshotDir() string {
 	dir := filepath.Join(GlobalDir(), "snapshots")
 	_ = os.MkdirAll(dir, 0755) // errors surface when caller writes
@@ -45,7 +45,7 @@ const (
 	TypeGeneric = "generic"
 )
 
-// ProjectConfig represents a .dev.yaml file in a project root.
+// ProjectConfig represents a .nova.yaml file in a project root.
 type ProjectConfig struct {
 	Type         string                       `yaml:"type"`
 	Domain         string                       `yaml:"domain"`
@@ -115,7 +115,7 @@ type ServiceDefinition struct {
 	Command     string            `yaml:"command"`
 }
 
-// Load reads .dev.yaml from the given project directory, returning defaults if not found.
+// Load reads .nova.yaml from the given project directory, returning defaults if not found.
 func Load(projectDir string) (*ProjectConfig, error) {
 	cfg := &ProjectConfig{}
 
@@ -252,7 +252,7 @@ type CollectedVersions struct {
 	SharedServices map[string]ServiceDefinition
 }
 
-// CollectVersions scans projectsDir for .dev.yaml files and returns all
+// CollectVersions scans projectsDir for .nova.yaml files and returns all
 // unique service versions needed. The current project's versions are always
 // included.
 func CollectVersions(projectsDir string, current *ProjectConfig) CollectedVersions {
