@@ -8,7 +8,7 @@
 
 ## Why
 
-When working on multiple branches simultaneously via git worktrees, traditional container-per-project setups eat RAM fast (~6 GB each). `nova` takes a different approach:
+When working on multiple branches simultaneously via git worktrees, traditional container-per-project setups eat RAM fast for big projects. `nova` takes a different approach:
 
 - **One PHP-FPM container per version** — shared across all projects (~150 MB each)
 - **One Caddy container** — reverse proxy for all `*.test` domains with automatic local HTTPS (~15 MB)
