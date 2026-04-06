@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,10 +48,9 @@ type ComposeOptions struct {
 	MySQLVersions    []string // e.g. ["8.0", "9.0"]
 	PostgresVersions []string // e.g. ["15", "16"]
 	RedisVersions    []string // e.g. ["7", "8"]
-	MailpitVersion   string
-	TypesenseVersion string   // empty = not included
-	Services         []string // additional services: "typesense", etc.
-	ForceRecreate    bool     // pass --force-recreate to compose up
+	MailpitVersion string
+	SharedServices map[string]config.ServiceDefinition
+	ForceRecreate  bool
 }
 
 // Up generates the compose file and starts services.
@@ -290,19 +290,57 @@ func generateCompose(opts ComposeOptions) string {
 	b.WriteString("      - \"8025:8025\"\n")
 	b.WriteString("    networks: [dev]\n\n")
 
-	// Typesense (only if version specified)
-	if opts.TypesenseVersion != "" {
-		fmt.Fprintf(&b, "  typesense:\n")
-		fmt.Fprintf(&b, "    image: typesense/typesense:%s\n", opts.TypesenseVersion)
+	// Shared services (collected from all projects' shared_services)
+	sharedNames := make([]string, 0, len(opts.SharedServices))
+	for name := range opts.SharedServices {
+		sharedNames = append(sharedNames, name)
+	}
+	sort.Strings(sharedNames)
+
+	for _, name := range sharedNames {
+		svc := opts.SharedServices[name]
+		fmt.Fprintf(&b, "  %s:\n", name)
+		fmt.Fprintf(&b, "    image: %s\n", svc.Image)
 		b.WriteString("    restart: unless-stopped\n")
-		b.WriteString("    ports:\n")
-		b.WriteString("      - \"8108:8108\"\n")
-		b.WriteString("    environment:\n")
-		b.WriteString("      TYPESENSE_API_KEY: dev\n")
-		b.WriteString("    volumes:\n")
-		b.WriteString("      - typesense_data:/data\n")
+
+		if len(svc.Ports) > 0 {
+			b.WriteString("    ports:\n")
+			for _, p := range svc.Ports {
+				fmt.Fprintf(&b, "      - %q\n", p)
+			}
+		}
+
+		if len(svc.Environment) > 0 {
+			b.WriteString("    environment:\n")
+			envKeys := make([]string, 0, len(svc.Environment))
+			for k := range svc.Environment {
+				envKeys = append(envKeys, k)
+			}
+			sort.Strings(envKeys)
+			for _, k := range envKeys {
+				fmt.Fprintf(&b, "      %s: %q\n", k, svc.Environment[k])
+			}
+		}
+
+		if svc.Command != "" {
+			fmt.Fprintf(&b, "    command: %s\n", svc.Command)
+		}
+
+		if len(svc.Volumes) > 0 {
+			b.WriteString("    volumes:\n")
+			for _, v := range svc.Volumes {
+				fmt.Fprintf(&b, "      - %s\n", v)
+			}
+			// Track named volumes (source doesn't start with / or .)
+			for _, v := range svc.Volumes {
+				source := strings.SplitN(v, ":", 2)[0]
+				if !strings.HasPrefix(source, "/") && !strings.HasPrefix(source, ".") {
+					volumes = append(volumes, source)
+				}
+			}
+		}
+
 		b.WriteString("    networks: [dev]\n\n")
-		volumes = append(volumes, "typesense_data")
 	}
 
 	// Volumes (only for included services)

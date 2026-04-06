@@ -12,20 +12,18 @@ import (
 const (
 	GlobalConfigFile = "config.yaml"
 
-	DefaultMySQLVersion     = "8.0"
-	DefaultRedisVersion     = "latest"
-	DefaultPostgresVersion  = "16"
-	DefaultTypesenseVersion = "latest"
-	DefaultMailpitVersion   = "latest"
+	DefaultMySQLVersion    = "8.0"
+	DefaultRedisVersion    = "latest"
+	DefaultPostgresVersion = "16"
+	DefaultMailpitVersion  = "latest"
 )
 
-// ServiceVersions holds Docker image versions for shared services.
+// ServiceVersions holds Docker image versions for built-in shared services.
 type ServiceVersions struct {
-	MySQL     string `yaml:"mysql"`
-	Redis     string `yaml:"redis"`
-	Typesense string `yaml:"typesense"`
-	Postgres  string `yaml:"postgres"`
-	Mailpit   string `yaml:"mailpit"`
+	MySQL    string `yaml:"mysql"`
+	Redis    string `yaml:"redis"`
+	Postgres string `yaml:"postgres"`
+	Mailpit  string `yaml:"mailpit"`
 }
 
 // GlobalConfig holds user-level configuration from ~/.dev/config.yaml.
@@ -85,9 +83,6 @@ func fillServiceVersionDefaults(v *ServiceVersions) {
 	if v.Mailpit == "" {
 		v.Mailpit = DefaultMailpitVersion
 	}
-	// Typesense and Postgres are intentionally left empty by default.
-	// Typesense: only included when user sets a version in config.
-	// Postgres: only included when a project uses db_driver: postgres.
 }
 
 // LoadGlobal reads ~/.dev/config.yaml and returns a GlobalConfig with defaults applied.

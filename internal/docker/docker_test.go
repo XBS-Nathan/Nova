@@ -109,17 +109,31 @@ func TestGenerateCompose_IncludesMailpit(t *testing.T) {
 	}
 }
 
-func TestGenerateCompose_TypesenseOnlyWhenVersionSet(t *testing.T) {
+func TestGenerateCompose_SharedServices(t *testing.T) {
 	got := generateCompose(defaultOpts("8.2"))
 	if strings.Contains(got, "typesense:") {
 		t.Error("typesense should not be included by default")
 	}
 
 	opts := defaultOpts("8.2")
-	opts.TypesenseVersion = "26.0"
+	opts.SharedServices = map[string]config.ServiceDefinition{
+		"typesense": {
+			Image:       "typesense/typesense:26.0",
+			Ports:       []string{"8108:8108"},
+			Environment: map[string]string{"TYPESENSE_API_KEY": "dev"},
+			Volumes:     []string{"typesense_data:/data"},
+			Command:     "--data-dir /data --enable-cors",
+		},
+	}
 	got = generateCompose(opts)
 	if !strings.Contains(got, "typesense:") {
-		t.Error("typesense should be included when version set")
+		t.Error("typesense should be included as shared service")
+	}
+	if !strings.Contains(got, "typesense/typesense:26.0") {
+		t.Error("missing typesense image")
+	}
+	if !strings.Contains(got, "typesense_data") {
+		t.Error("missing typesense volume")
 	}
 }
 

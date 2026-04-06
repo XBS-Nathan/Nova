@@ -61,8 +61,9 @@ type ProjectConfig struct {
 	Extensions   []string                     `yaml:"extensions"`
 	MySQL        MySQLConfig                  `yaml:"mysql"`
 	Postgres     PostgresConfig               `yaml:"postgres"`
-	Hooks        Hooks                        `yaml:"hooks"`
-	Services     map[string]ServiceDefinition `yaml:"services"`
+	Hooks          Hooks                        `yaml:"hooks"`
+	SharedServices map[string]ServiceDefinition `yaml:"shared_services"`
+	Services       map[string]ServiceDefinition `yaml:"services"`
 }
 
 // DBConfig returns a unified database config for the db package.
@@ -243,9 +244,10 @@ func defaultHooksForType(projectType string) Hooks {
 
 // CollectedVersions holds unique service versions found across all projects.
 type CollectedVersions struct {
-	MySQL    []string
-	Postgres []string
-	Redis    []string
+	MySQL          []string
+	Postgres       []string
+	Redis          []string
+	SharedServices map[string]ServiceDefinition
 }
 
 // CollectVersions scans projectsDir for .dev.yaml files and returns all
@@ -255,6 +257,7 @@ func CollectVersions(projectsDir string, current *ProjectConfig) CollectedVersio
 	mysqlSet := make(map[string]bool)
 	pgSet := make(map[string]bool)
 	redisSet := make(map[string]bool)
+	sharedSvcs := make(map[string]ServiceDefinition)
 
 	// Scan all project directories
 	entries, _ := os.ReadDir(projectsDir)
@@ -267,15 +270,29 @@ func CollectVersions(projectsDir string, current *ProjectConfig) CollectedVersio
 			continue
 		}
 		addVersionToSet(cfg, mysqlSet, pgSet, redisSet)
+		collectSharedServices(cfg, sharedSvcs)
 	}
 
 	// Always include current project
 	addVersionToSet(current, mysqlSet, pgSet, redisSet)
+	collectSharedServices(current, sharedSvcs)
 
 	return CollectedVersions{
-		MySQL:    setToSorted(mysqlSet),
-		Postgres: setToSorted(pgSet),
-		Redis:    setToSorted(redisSet),
+		MySQL:          setToSorted(mysqlSet),
+		Postgres:       setToSorted(pgSet),
+		Redis:          setToSorted(redisSet),
+		SharedServices: sharedSvcs,
+	}
+}
+
+// collectSharedServices merges a project's shared_services into the map.
+// First definition wins — subsequent projects with the same service name
+// are assumed to want the same shared instance.
+func collectSharedServices(cfg *ProjectConfig, dest map[string]ServiceDefinition) {
+	for name, svc := range cfg.SharedServices {
+		if _, exists := dest[name]; !exists {
+			dest[name] = svc
+		}
 	}
 }
 

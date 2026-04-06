@@ -104,10 +104,9 @@ func newLifecycle(
 
 	return &lifecycle.Lifecycle{
 		Docker: docker.Service{
-			ProjectsDir:      global.ProjectsDir,
-			Collected:        collected,
-			MailpitVersion:   global.Versions.Mailpit,
-			TypesenseVersion: global.Versions.Typesense,
+			ProjectsDir:    global.ProjectsDir,
+			Collected:      collected,
+			MailpitVersion: global.Versions.Mailpit,
 		},
 		Caddy:         caddy.Service{},
 		Hosts:         hosts.Service{},

@@ -30,9 +30,6 @@ func TestLoadGlobal_DefaultsWhenNoFile(t *testing.T) {
 	if cfg.Versions.Redis != DefaultRedisVersion {
 		t.Errorf("Versions.Redis = %q, want %q", cfg.Versions.Redis, DefaultRedisVersion)
 	}
-	if cfg.Versions.Typesense != "" {
-		t.Errorf("Versions.Typesense = %q, want empty (opt-in only)", cfg.Versions.Typesense)
-	}
 	if cfg.Versions.Postgres != "" {
 		t.Errorf("Versions.Postgres = %q, want empty (set by db_driver)", cfg.Versions.Postgres)
 	}
@@ -83,7 +80,6 @@ projects_dir: /srv/projects
 versions:
   mysql: "9.0"
   redis: "7"
-  typesense: "27.0"
   postgres: "16"
   mailpit: "v1.21"
 `
@@ -101,9 +97,6 @@ versions:
 	}
 	if cfg.Versions.Redis != "7" {
 		t.Errorf("Versions.Redis = %q, want %q", cfg.Versions.Redis, "7")
-	}
-	if cfg.Versions.Typesense != "27.0" {
-		t.Errorf("Versions.Typesense = %q, want %q", cfg.Versions.Typesense, "27.0")
 	}
 	if cfg.Versions.Postgres != "16" {
 		t.Errorf("Versions.Postgres = %q, want %q", cfg.Versions.Postgres, "16")

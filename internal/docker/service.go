@@ -4,10 +4,9 @@ import "github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 
 // Service wraps the docker package functions for the lifecycle interface.
 type Service struct {
-	ProjectsDir      string
-	Collected        config.CollectedVersions
-	MailpitVersion   string
-	TypesenseVersion string // empty = not included
+	ProjectsDir    string
+	Collected      config.CollectedVersions
+	MailpitVersion string
 }
 
 func (s Service) Up(php []PHPVersion, forceRecreate bool) error {
@@ -18,7 +17,7 @@ func (s Service) Up(php []PHPVersion, forceRecreate bool) error {
 		PostgresVersions: s.Collected.Postgres,
 		RedisVersions:    s.Collected.Redis,
 		MailpitVersion:   s.MailpitVersion,
-		TypesenseVersion: s.TypesenseVersion,
+		SharedServices:   s.Collected.SharedServices,
 		ForceRecreate:    forceRecreate,
 	})
 }
