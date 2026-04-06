@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pterm/pterm"
@@ -174,6 +176,19 @@ func (l *Lifecycle) Start(p *project.Project, php []docker.PHPVersion, forceRecr
 			pterm.Gray("Database"),
 			pterm.White(p.Config.DB+" ("+p.Config.DBDriver+")"),
 		)
+
+	// Hint to trust cert on first use
+	certPath := filepath.Join(
+		config.GlobalDir(), "caddy", "data",
+		"caddy", "pki", "authorities", "local", "root.crt",
+	)
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		fmt.Println()
+		pterm.Info.Println(
+			"HTTPS won't work until you trust the CA certificate.\n" +
+				"  Run: " + pterm.LightCyan("dev trust"),
+		)
+	}
 
 	return nil
 }

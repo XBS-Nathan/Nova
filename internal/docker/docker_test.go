@@ -7,7 +7,8 @@ import (
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 )
 
-func defaultOpts(versions ...string) ComposeOptions {
+func defaultOpts(t *testing.T, versions ...string) ComposeOptions {
+	t.Helper()
 	php := make([]PHPVersion, len(versions))
 	for i, v := range versions {
 		php[i] = PHPVersion{Version: v}
@@ -22,7 +23,8 @@ func defaultOpts(versions ...string) ComposeOptions {
 }
 
 func TestGenerateCompose_IncludesCaddy(t *testing.T) {
-	got := generateCompose(defaultOpts("8.2"))
+	t.Parallel()
+	got := generateCompose(defaultOpts(t, "8.2"))
 	if !strings.Contains(got, "caddy:") {
 		t.Error("missing caddy service")
 	}
@@ -32,7 +34,7 @@ func TestGenerateCompose_IncludesCaddy(t *testing.T) {
 }
 
 func TestGenerateCompose_IncludesPHPVersions(t *testing.T) {
-	got := generateCompose(defaultOpts("8.2", "8.3"))
+	got := generateCompose(defaultOpts(t, "8.2", "8.3"))
 	if !strings.Contains(got, "php82:") {
 		t.Error("missing php82 service")
 	}
@@ -42,7 +44,7 @@ func TestGenerateCompose_IncludesPHPVersions(t *testing.T) {
 }
 
 func TestGenerateCompose_MountsProjectsDir(t *testing.T) {
-	opts := defaultOpts("8.2")
+	opts := defaultOpts(t, "8.2")
 	opts.ProjectsDir = "/home/user/Code"
 	got := generateCompose(opts)
 	if !strings.Contains(got, "/home/user/Code:/srv") {
@@ -51,7 +53,7 @@ func TestGenerateCompose_MountsProjectsDir(t *testing.T) {
 }
 
 func TestGenerateCompose_IncludesVersionedMySQL(t *testing.T) {
-	opts := defaultOpts("8.2")
+	opts := defaultOpts(t, "8.2")
 	opts.MySQLVersions = []string{"8.0", "9.0"}
 	got := generateCompose(opts)
 	if !strings.Contains(got, "mysql_80:") {
@@ -69,7 +71,7 @@ func TestGenerateCompose_IncludesVersionedMySQL(t *testing.T) {
 }
 
 func TestGenerateCompose_IncludesVersionedRedis(t *testing.T) {
-	opts := defaultOpts("8.2")
+	opts := defaultOpts(t, "8.2")
 	opts.RedisVersions = []string{"7", "8"}
 	got := generateCompose(opts)
 	if !strings.Contains(got, "redis_7:") {
@@ -81,7 +83,7 @@ func TestGenerateCompose_IncludesVersionedRedis(t *testing.T) {
 }
 
 func TestGenerateCompose_IncludesVersionedPostgres(t *testing.T) {
-	opts := defaultOpts("8.2")
+	opts := defaultOpts(t, "8.2")
 	opts.MySQLVersions = nil
 	opts.PostgresVersions = []string{"15", "16"}
 	got := generateCompose(opts)
@@ -94,7 +96,7 @@ func TestGenerateCompose_IncludesVersionedPostgres(t *testing.T) {
 }
 
 func TestGenerateCompose_IncludesMailpit(t *testing.T) {
-	got := generateCompose(defaultOpts("8.2"))
+	got := generateCompose(defaultOpts(t, "8.2"))
 	if !strings.Contains(got, "mailpit:") {
 		t.Error("missing mailpit service")
 	}
@@ -110,12 +112,12 @@ func TestGenerateCompose_IncludesMailpit(t *testing.T) {
 }
 
 func TestGenerateCompose_SharedServices(t *testing.T) {
-	got := generateCompose(defaultOpts("8.2"))
+	got := generateCompose(defaultOpts(t, "8.2"))
 	if strings.Contains(got, "typesense:") {
 		t.Error("typesense should not be included by default")
 	}
 
-	opts := defaultOpts("8.2")
+	opts := defaultOpts(t, "8.2")
 	opts.SharedServices = map[string]config.ServiceDefinition{
 		"typesense": {
 			Image:       "typesense/typesense:26.0",

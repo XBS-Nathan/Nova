@@ -5,7 +5,8 @@ import (
 	"testing"
 )
 
-func baseCfg(version string, extensions []string) ImageConfig {
+func baseCfg(t *testing.T, version string, extensions []string) ImageConfig {
+	t.Helper()
 	return ImageConfig{
 		PHPVersion:     version,
 		Extensions:     extensions,
@@ -15,7 +16,7 @@ func baseCfg(version string, extensions []string) ImageConfig {
 }
 
 func TestGenerateDockerfile_BaseExtensionsOnly(t *testing.T) {
-	got := generateDockerfile(baseCfg("8.2", nil))
+	got := generateDockerfile(baseCfg(t, "8.2", nil))
 
 	if !strings.Contains(got, "FROM php:8.2-fpm-alpine") {
 		t.Error("missing base image")
@@ -29,7 +30,7 @@ func TestGenerateDockerfile_BaseExtensionsOnly(t *testing.T) {
 }
 
 func TestGenerateDockerfile_WithExtraExtensions(t *testing.T) {
-	got := generateDockerfile(baseCfg("8.3", []string{"imagick", "swoole"}))
+	got := generateDockerfile(baseCfg(t, "8.3", []string{"imagick", "swoole"}))
 
 	if !strings.Contains(got, "FROM php:8.3-fpm-alpine") {
 		t.Error("missing base image")
@@ -40,7 +41,7 @@ func TestGenerateDockerfile_WithExtraExtensions(t *testing.T) {
 }
 
 func TestGenerateDockerfile_WithNativeExtensions(t *testing.T) {
-	got := generateDockerfile(baseCfg("8.2", []string{"gd", "zip", "intl", "exif"}))
+	got := generateDockerfile(baseCfg(t, "8.2", []string{"gd", "zip", "intl", "exif"}))
 
 	for _, dep := range []string{"libpng-dev", "libzip-dev", "icu-dev"} {
 		if !strings.Contains(got, dep) {
@@ -56,7 +57,7 @@ func TestGenerateDockerfile_WithNativeExtensions(t *testing.T) {
 }
 
 func TestGenerateDockerfile_MixedExtensions(t *testing.T) {
-	got := generateDockerfile(baseCfg("8.3", []string{"gd", "imagick"}))
+	got := generateDockerfile(baseCfg(t, "8.3", []string{"gd", "imagick"}))
 
 	if !strings.Contains(got, "docker-php-ext-install "+baseExtensions+" gd") {
 		t.Errorf("native gd not in ext-install:\n%s", got)
@@ -67,7 +68,7 @@ func TestGenerateDockerfile_MixedExtensions(t *testing.T) {
 }
 
 func TestGenerateDockerfile_IncludesNodeJS(t *testing.T) {
-	got := generateDockerfile(baseCfg("8.2", nil))
+	got := generateDockerfile(baseCfg(t, "8.2", nil))
 
 	if !strings.Contains(got, "nodejs") {
 		t.Errorf("missing nodejs install:\n%s", got)
@@ -78,7 +79,7 @@ func TestGenerateDockerfile_IncludesNodeJS(t *testing.T) {
 }
 
 func TestGenerateDockerfile_YarnPackageManager(t *testing.T) {
-	cfg := baseCfg("8.2", nil)
+	cfg := baseCfg(t, "8.2", nil)
 	cfg.PackageManager = "yarn"
 	got := generateDockerfile(cfg)
 
@@ -88,7 +89,7 @@ func TestGenerateDockerfile_YarnPackageManager(t *testing.T) {
 }
 
 func TestGenerateDockerfile_PnpmPackageManager(t *testing.T) {
-	cfg := baseCfg("8.2", nil)
+	cfg := baseCfg(t, "8.2", nil)
 	cfg.PackageManager = "pnpm"
 	got := generateDockerfile(cfg)
 

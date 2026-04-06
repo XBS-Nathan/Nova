@@ -7,6 +7,7 @@ import (
 )
 
 func TestDbNameFromDir(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		dir  string
@@ -35,6 +36,7 @@ func TestDbNameFromDir(t *testing.T) {
 }
 
 func TestDetectType(t *testing.T) {
+	t.Parallel()
 	t.Run("detects laravel when artisan file exists", func(t *testing.T) {
 		dir := t.TempDir()
 		os.WriteFile(filepath.Join(dir, "artisan"), []byte("#!/usr/bin/env php"), 0644)
@@ -56,6 +58,7 @@ func TestDetectType(t *testing.T) {
 }
 
 func TestDefaultExtensionsForType(t *testing.T) {
+	t.Parallel()
 	t.Run("laravel has default extensions", func(t *testing.T) {
 		exts := defaultExtensionsForType(TypeLaravel)
 		if len(exts) == 0 {
@@ -78,6 +81,7 @@ func TestDefaultExtensionsForType(t *testing.T) {
 }
 
 func TestDefaultHooksForType(t *testing.T) {
+	t.Parallel()
 	t.Run("laravel has default hooks", func(t *testing.T) {
 		hooks := defaultHooksForType(TypeLaravel)
 		if len(hooks.PostStart) == 0 {

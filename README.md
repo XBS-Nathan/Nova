@@ -8,7 +8,7 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 
 - **One PHP-FPM container per version** — shared across all projects (~150 MB each)
 - **One Caddy container** — reverse proxy for all `*.test` domains with automatic local HTTPS (~15 MB)
-- **Shared database/cache containers** — one MySQL, Redis, Typesense instance instead of one per project
+- **Shared database/cache containers** — one MySQL, Redis instance instead of one per project
 
 **RAM comparison for 5 projects:**
 
@@ -28,16 +28,66 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 
 > **OrbStack** is recommended on macOS for significantly better performance and lower resource usage compared to Docker Desktop.
 
-## Install
+## Getting Started
+
+### 1. Install
 
 ```bash
 git clone https://github.com/XBS-Nathan/apex-flow-dev-cli.git
 cd dev-cli
 go build -o dev .
-./dev trust   # trust the Caddy local CA certificate
+
+# Add to PATH
+sudo mv dev /usr/local/bin/
 ```
 
-That's it. First `dev start` builds the PHP images automatically.
+### 2. Set up a project
+
+```bash
+cd /path/to/your/project
+dev init
+```
+
+`dev init` walks you through an interactive setup:
+
+```
+  dev init — my-project
+
+  ✓ Detected laravel project
+
+  General
+  ? Project type (laravel):
+  ? Domain (my-project.test):
+
+  Language
+  ? PHP version (8.2):
+  ? Node version (22):
+  ? Package manager (npm/yarn/pnpm):
+
+  Database
+  ? Driver (mysql):
+  ? Version (8.0):
+  ? Name (my_project):
+
+  ✓ Created .dev.yaml
+  Run dev start to get going.
+```
+
+### 3. Start the project
+
+```bash
+dev start
+```
+
+First run builds the PHP Docker image (takes a minute), then starts everything. Subsequent starts are instant.
+
+### 4. Trust HTTPS (one-time)
+
+```bash
+dev trust
+```
+
+`dev start` will remind you if you haven't done this yet.
 
 ### WSL2
 
@@ -45,37 +95,38 @@ That's it. First `dev start` builds the PHP images automatically.
 - Installs the Caddy CA cert in both Linux and Windows trust stores
 - `dev start` adds hosts entries to both `/etc/hosts` and the Windows hosts file
 
-## Usage
-
-```bash
-cd /path/to/your/project
-dev start
-```
-
-### Commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
-| `dev start` | Start the current project (builds images, starts containers, links Caddy, creates DB) |
-| `dev stop` | Stop the current project (unlinks from Caddy, containers stay running) |
+| **Setup** | |
+| `dev init` | Create a `.dev.yaml` config for the current project (interactive) |
+| `dev trust` | Trust the Caddy local CA certificate for HTTPS |
+| `dev build` | Force rebuild PHP images |
+| **Lifecycle** | |
+| `dev start` | Start the current project |
+| `dev stop` | Stop the current project |
 | `dev restart` | Stop + start |
 | `dev down` | Stop all containers |
+| **Run commands** | |
 | `dev artisan [args]` | Run `php artisan` inside the PHP container (Laravel) |
 | `dev composer [args]` | Run `composer` inside the PHP container |
 | `dev exec [command...]` | Run any command in the project's PHP container |
+| **Database** | |
 | `dev snapshot [name]` | Create a database snapshot |
-| `dev snapshot restore [name]` | Restore from a snapshot (latest if no name given) |
+| `dev snapshot restore [name]` | Restore from a snapshot (latest if no name) |
 | `dev snapshot list` | List available snapshots |
-| `dev info` | Show project URL, PHP version, DB, service status |
+| **Debugging** | |
+| `dev logs [service]` | Stream container logs (all or specific service) |
 | `dev xdebug on/off` | Toggle Xdebug (sub-second, no container restart) |
-| `dev share` | Share via Cloudflare Tunnel or ngrok |
+| `dev info` | Show project URL, PHP version, DB, service status |
+| **Config** | |
 | `dev use php <version>` | Set the PHP version for this project |
 | `dev use node <version>` | Set the Node version for this project |
 | `dev use db <mysql\|postgres>` | Set the database driver |
-| `dev trust` | Trust the Caddy local CA certificate |
-| `dev build` | Force rebuild PHP images |
-| `dev services up` | Start shared Docker services |
-| `dev services down` | Stop shared Docker services |
+| **Other** | |
+| `dev share` | Share via Cloudflare Tunnel or ngrok |
+| `dev services up/down` | Start/stop shared Docker services |
 
 ### Shell completions
 
@@ -92,68 +143,78 @@ dev completion fish > ~/.config/fish/completions/dev.fish
 
 ## Configuration
 
-### Global: `~/.dev/config.yaml`
-
-```yaml
-# Parent directory mounted into containers (default: ~/Projects)
-projects_dir: ~/Projects
-
-# PHP versions to keep available
-php_versions:
-  - "8.2"
-  - "8.3"
-
-# Service image versions (default: latest)
-versions:
-  mysql: "latest"
-  redis: "latest"
-  typesense: "latest"
-  postgres: "latest"
-  mailpit: "latest"
-```
-
 ### Per-project: `.dev.yaml`
 
-Drop a `.dev.yaml` in your project root to override defaults. Everything is optional.
+Created by `dev init` or manually. Everything is optional — sensible defaults are used.
 
 ```yaml
-# PHP version (default: 8.2)
-php: "8.1"
+# Project type (auto-detected: laravel or generic)
+type: laravel
 
-# Node version (default: 22)
+# Domain (default: <project-name>.test)
+domain: my-project.test
+
+# PHP version (default: 8.2)
+php: "8.2"
+
+# Node.js version (default: 22)
 node: "22"
+
+# Package manager: npm, yarn, or pnpm (default: npm)
+package_manager: yarn
 
 # Database driver: mysql or postgres (default: mysql)
 db_driver: mysql
-
-# Database name (default: derived from directory name)
+db_version: "8.0"
 db: my_project
 
-# PHP extensions to install (added to the shared PHP image)
+# Redis version
+redis_version: latest
+
+# PHP extensions (added to the shared PHP image)
 extensions:
   - imagick
   - swoole
 
-# MySQL connection (defaults shown)
-mysql:
-  user: root
-  pass: root
-  host: 127.0.0.1
-  port: "3306"
+# Extra ports routed through Caddy (e.g. webpack HMR)
+ports:
+  - "8080"
 
-# PostgreSQL connection (defaults shown)
-postgres:
-  user: postgres
-  pass: postgres
-  host: 127.0.0.1
-  port: "5432"
+# Node.js command to run on dev start
+node_command: yarn run hot
 
 # Hooks run inside the PHP container after start/stop
 hooks:
   post-start:
     - "php artisan horizon &"
-    - "yarn run hot &"
   post-stop: []
+
+# Per-project Docker services
+services:
+  typesense:
+    image: typesense/typesense:26.0
+    ports:
+      - "8108:8108"
+    environment:
+      TYPESENSE_API_KEY: dev
+    volumes:
+      - typesense_data:/data
+    command: "--data-dir /data --enable-cors"
+```
+
+### Global: `~/.dev/config.yaml`
+
+Optional. Created automatically with defaults on first `dev start`.
+
+```yaml
+# Parent directory mounted into containers (default: ~/Projects)
+projects_dir: ~/Projects
+
+# Service image versions
+versions:
+  mysql: "8.0"
+  redis: latest
+  mailpit: latest
 ```
 
 ### Directory structure
@@ -187,13 +248,13 @@ Browser → project.test → /etc/hosts → 127.0.0.1
                                           ↓
                                     PHP-FPM (Docker, per-version)
                                           ↓
-                                MySQL / Redis / Typesense (Docker)
+                                MySQL / Redis (Docker)
 ```
 
 1. **DNS**: `dev start` adds `127.0.0.1 project.test` to `/etc/hosts` (+ Windows hosts on WSL2)
-2. **Caddy**: Routes each `*.test` domain to the correct PHP-FPM container over the Docker network. Automatic local HTTPS via built-in CA.
-3. **PHP-FPM**: One container per PHP version, shared across all projects. Extensions configurable per project (unioned into the shared image). Xdebug toggled via mounted ini file + FPM reload signal.
-4. **Docker Compose**: Generated dynamically based on which PHP versions and services are needed.
+2. **Caddy**: Routes each `*.test` domain to the correct PHP-FPM container. Automatic local HTTPS via built-in CA.
+3. **PHP-FPM**: One container per PHP version with Node.js included. Extensions configurable per project. Xdebug toggled via mounted ini + FPM reload signal.
+4. **Docker Compose**: Generated dynamically — only starts services the project needs.
 
 ## Database Snapshots
 

@@ -8,13 +8,24 @@ import (
 	"github.com/XBS-Nathan/apex-flow-dev-cli/internal/config"
 )
 
+// chdirTest changes to dir and registers cleanup to restore the original.
+func chdirTest(t *testing.T, dir string) {
+	t.Helper()
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getting cwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir to %s: %v", dir, err)
+	}
+	t.Cleanup(func() { os.Chdir(orig) })
+}
+
 func TestDetect_FindsComposerJson(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "composer.json"), []byte("{}"), 0644)
 
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
+	chdirTest(t, dir)
 
 	p, err := Detect()
 	if err != nil {
@@ -29,9 +40,7 @@ func TestDetect_FindsDevYaml(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, config.ConfigFile), []byte(`php: "8.1"`), 0644)
 
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
+	chdirTest(t, dir)
 
 	p, err := Detect()
 	if err != nil {
@@ -46,9 +55,7 @@ func TestDetect_FindsPackageJson(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "package.json"), []byte("{}"), 0644)
 
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
+	chdirTest(t, dir)
 
 	p, err := Detect()
 	if err != nil {
@@ -63,9 +70,7 @@ func TestDetect_FindsGitDir(t *testing.T) {
 	dir := t.TempDir()
 	os.Mkdir(filepath.Join(dir, ".git"), 0755)
 
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
+	chdirTest(t, dir)
 
 	p, err := Detect()
 	if err != nil {
@@ -83,9 +88,7 @@ func TestDetect_WalksUpDirectoryTree(t *testing.T) {
 	subdir := filepath.Join(root, "app", "Http")
 	os.MkdirAll(subdir, 0755)
 
-	orig, _ := os.Getwd()
-	os.Chdir(subdir)
-	defer os.Chdir(orig)
+	chdirTest(t, subdir)
 
 	p, err := Detect()
 	if err != nil {
@@ -99,9 +102,7 @@ func TestDetect_WalksUpDirectoryTree(t *testing.T) {
 func TestDetect_NoProjectFound(t *testing.T) {
 	dir := t.TempDir()
 
-	orig, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(orig)
+	chdirTest(t, dir)
 
 	_, err := Detect()
 	if err == nil {

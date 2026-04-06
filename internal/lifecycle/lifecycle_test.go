@@ -93,7 +93,8 @@ func (m *mockHosts) Ensure(domain string) error {
 	return m.ensureErr
 }
 
-func newTestProject(name string) *project.Project {
+func newTestProject(t *testing.T, name string) *project.Project {
+	t.Helper()
 	return &project.Project{
 		Name: name,
 		Dir:  "/tmp/test-" + name,
@@ -115,10 +116,12 @@ func newTestProject(name string) *project.Project {
 
 // captureOutput returns a lifecycle with output captured to a buffer.
 func captureOutput(
+	t *testing.T,
 	docker DockerService,
 	caddy CaddyService,
 	hosts HostsService,
 ) (*Lifecycle, *strings.Builder) {
+	t.Helper()
 	var buf strings.Builder
 	lc := &Lifecycle{
 		Docker: docker,
@@ -141,8 +144,8 @@ func TestStart_CallsServicesInOrder(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	// Start will fail at db.NewStore because mysql isn't running,
 	// but we can verify docker, caddy, and hosts were called first.
@@ -169,8 +172,8 @@ func TestStart_StopsOnDockerError(t *testing.T) {
 	d := &mockDocker{upErr: fmt.Errorf("docker broken")}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
 
@@ -192,8 +195,8 @@ func TestStart_StopsOnCaddyLinkError(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{linkErr: fmt.Errorf("link broken")}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
 
@@ -212,8 +215,8 @@ func TestStart_StopsOnHostsError(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{ensureErr: fmt.Errorf("hosts broken")}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
 
@@ -229,8 +232,8 @@ func TestStart_RunsHooksViaDockerExec(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 	p.Config.Hooks.PostStart = []string{"php artisan migrate", "yarn build"}
 
 	// Will fail at db step, but hooks come after db — so we need db to succeed.
@@ -252,8 +255,8 @@ func TestStop_CallsUnlink(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	err := lc.Stop(p)
 
@@ -272,8 +275,8 @@ func TestStop_RunsHooksViaDockerExec(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 	p.Config.Hooks.PostStop = []string{"php artisan down"}
 
 	err := lc.Stop(p)
@@ -310,8 +313,8 @@ func TestStop_KillsBackgroundProcessesByProjectName(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	_ = lc.Stop(p)
 
@@ -353,8 +356,8 @@ func TestStop_ReturnsUnlinkError(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{unlinkErr: fmt.Errorf("unlink broken")}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	err := lc.Stop(p)
 
@@ -370,7 +373,7 @@ func TestDown_StopsDocker(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
+	lc, _ := captureOutput(t, d, c, h)
 
 	err := lc.Down()
 
@@ -386,7 +389,7 @@ func TestDown_ReturnsDockerError(t *testing.T) {
 	d := &mockDocker{downErr: fmt.Errorf("docker down failed")}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
+	lc, _ := captureOutput(t, d, c, h)
 
 	err := lc.Down()
 
@@ -402,8 +405,8 @@ func TestStart_CallsAllServices(t *testing.T) {
 	d := &mockDocker{}
 	c := &mockCaddy{}
 	h := &mockHosts{}
-	lc, _ := captureOutput(d, c, h)
-	p := newTestProject("myapp")
+	lc, _ := captureOutput(t, d, c, h)
+	p := newTestProject(t, "myapp")
 
 	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
 

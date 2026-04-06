@@ -58,7 +58,12 @@ func TestEnsure_SkipsExistingEntry(t *testing.T) {
 	}
 }
 
-func TestIsWSL2(t *testing.T) {
-	// Just verify it doesn't panic; result depends on environment
-	_ = IsWSL2()
+func TestIsWSL2_ReturnsBool(t *testing.T) {
+	// Result depends on environment, but must be deterministic
+	// and not panic. Call twice to verify consistency.
+	first := IsWSL2()
+	second := IsWSL2()
+	if first != second {
+		t.Errorf("IsWSL2() returned %v then %v — should be deterministic", first, second)
+	}
 }
