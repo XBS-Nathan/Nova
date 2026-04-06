@@ -28,11 +28,15 @@ When working on multiple branches simultaneously via git worktrees, traditional 
 ### 1. Install
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/XBS-Nathan/Nova/main/install.sh | sh
+```
+
+Or build from source:
+
+```bash
 git clone https://github.com/XBS-Nathan/nova.git
 cd nova
 go build -o nova .
-
-# Add to PATH
 sudo mv nova /usr/local/bin/
 ```
 
