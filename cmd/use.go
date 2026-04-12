@@ -114,6 +114,12 @@ func ensurePHPRunning(version string) error {
 		return err
 	}
 
+	// Pre-create conf.d directory before Docker can create it as root
+	confDir := filepath.Join(config.GlobalDir(), "php", version, "conf.d")
+	if err := os.MkdirAll(confDir, 0755); err != nil {
+		return fmt.Errorf("creating php conf.d dir: %w", err)
+	}
+
 	imgCfg := phpimage.ImageConfig{
 		PHPVersion: version,
 		Extensions: p.Config.Extensions,
