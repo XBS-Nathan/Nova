@@ -176,6 +176,7 @@ func generateDockerfile(cfg ImageConfig) string {
 	// The actual UID is set via docker compose user: directive at runtime.
 	fmt.Fprintf(&b, "RUN sed -i '/^user = /d; /^group = /d' /usr/local/etc/php-fpm.d/www.conf\n\n")
 
+	fmt.Fprintf(&b, "COPY --from=composer:latest /usr/bin/composer /usr/bin/composer\n")
 	fmt.Fprintf(&b, "COPY php.ini /usr/local/etc/php/php.ini\n")
 	fmt.Fprintf(&b, "COPY my.cnf /etc/my.cnf.d/dev.cnf\n\n")
 	fmt.Fprintf(&b, "WORKDIR /srv\n")
