@@ -121,6 +121,25 @@ func TestProjectDown_NoComposeFile(t *testing.T) {
 	}
 }
 
+func TestProjectServices_NoComposeFile(t *testing.T) {
+	dir := t.TempDir()
+	services := ProjectServices("test-project", dir)
+	if services != nil {
+		t.Errorf("ProjectServices() = %v, want nil when compose file doesn't exist", services)
+	}
+}
+
+func TestProjectLogs_NoComposeFile(t *testing.T) {
+	dir := t.TempDir()
+	err := ProjectLogs("test-project", dir, "")
+	if err == nil {
+		t.Fatal("ProjectLogs() expected error when compose file doesn't exist")
+	}
+	if got := err.Error(); got != "no project services running" {
+		t.Errorf("ProjectLogs() error = %q, want %q", got, "no project services running")
+	}
+}
+
 func TestProjectUp_EmptyServices(t *testing.T) {
 	dir := t.TempDir()
 	// Should be a no-op with empty services

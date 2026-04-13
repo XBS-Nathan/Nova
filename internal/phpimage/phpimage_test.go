@@ -69,6 +69,15 @@ func TestGenerateDockerfile_MixedExtensions(t *testing.T) {
 	}
 }
 
+func TestGenerateDockerfile_IncludesComposer(t *testing.T) {
+	t.Parallel()
+	got := generateDockerfile(baseCfg(t, "8.2", nil))
+
+	if !strings.Contains(got, "COPY --from=composer:latest /usr/bin/composer /usr/bin/composer") {
+		t.Errorf("missing composer COPY line in:\n%s", got)
+	}
+}
+
 func TestUnionExtensions(t *testing.T) {
 	t.Parallel()
 	projects := [][]string{

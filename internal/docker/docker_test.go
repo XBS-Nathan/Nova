@@ -44,6 +44,14 @@ func TestGenerateCompose_IncludesPHPVersions(t *testing.T) {
 	}
 }
 
+func TestGenerateCompose_PHPServiceIncludesNovaEnv(t *testing.T) {
+	t.Parallel()
+	got := generateCompose(defaultOpts(t, "8.2"))
+	if !strings.Contains(got, "NOVA: \"true\"") {
+		t.Errorf("missing NOVA environment variable in PHP service:\n%s", got)
+	}
+}
+
 func TestGenerateCompose_MountsProjectsDir(t *testing.T) {
 	t.Parallel()
 	opts := defaultOpts(t, "8.2")
