@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -60,4 +61,24 @@ func runInContainer(args ...string) error {
 	}
 	svc := docker.PHPServiceName(p.Config.PHP)
 	return docker.Exec(svc, workdir, args...)
+}
+
+// runNodeCommand runs a one-off command in a temporary Node container
+// with the same image and volumes as the project's node service.
+func runNodeCommand(args ...string) error {
+	p, err := project.Detect()
+	if err != nil {
+		return err
+	}
+	global, err := config.LoadGlobal()
+	if err != nil {
+		return err
+	}
+	workdir, err := containerWorkdir(global.ProjectsDir, p.Dir)
+	if err != nil {
+		return err
+	}
+
+	image := fmt.Sprintf("node:%s-alpine", p.Config.Node)
+	return docker.Run(image, workdir, global.ProjectsDir, strings.Join(args, " "))
 }

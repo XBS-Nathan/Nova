@@ -38,6 +38,23 @@ func ProjectUp(projectName, projectDir string, services map[string]config.Servic
 	return projectCompose(projectName, projectDir, "up", "-d")
 }
 
+// ProjectExec runs an interactive command in a project service container.
+func ProjectExec(projectName, projectDir, service, workdir string, args ...string) error {
+	composeFile := ProjectComposeFile(projectDir)
+	execArgs := []string{
+		"compose",
+		"-f", composeFile,
+		"-p", fmt.Sprintf("nova-%s", projectName),
+		"exec", "-w", workdir, service,
+	}
+	execArgs = append(execArgs, args...)
+	cmd := exec.Command("docker", execArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
 // ProjectDown stops per-project Docker services.
 func ProjectDown(projectName, projectDir string) error {
 	path := ProjectComposeFile(projectDir)
