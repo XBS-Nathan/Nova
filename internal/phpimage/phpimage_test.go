@@ -52,7 +52,7 @@ func TestGenerateDockerfile_WithNativeExtensions(t *testing.T) {
 	if !strings.Contains(got, "docker-php-ext-configure gd") {
 		t.Error("missing gd configure step")
 	}
-	if !strings.Contains(got, "docker-php-ext-install "+baseExtensions+" gd zip intl exif") {
+	if !strings.Contains(got, "docker-php-ext-install "+baseExtensions+" exif gd intl zip") {
 		t.Errorf("native extensions not in ext-install:\n%s", got)
 	}
 }

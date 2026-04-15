@@ -22,19 +22,23 @@ var baseRuntimeDeps = []string{"bash", "libpq", "mysql-client", "postgresql-clie
 
 // nativeExtDeps maps extensions to their Alpine build-time (-dev) packages.
 var nativeExtDeps = map[string][]string{
-	"gd":   {"libpng-dev", "libjpeg-turbo-dev", "freetype-dev"},
-	"zip":  {"libzip-dev"},
-	"intl": {"icu-dev"},
-	"exif": {},
+	"gd":      {"libpng-dev", "libjpeg-turbo-dev", "freetype-dev"},
+	"zip":     {"libzip-dev"},
+	"intl":    {"icu-dev"},
+	"exif":    {},
+	"soap":    {"libxml2-dev"},
+	"sockets": {},
 }
 
 // nativeExtRuntime maps extensions to their Alpine runtime packages
 // (must remain after build deps are removed).
 var nativeExtRuntime = map[string][]string{
-	"gd":   {"libpng", "libjpeg-turbo", "freetype"},
-	"zip":  {"libzip"},
-	"intl": {"icu-libs"},
-	"exif": {},
+	"gd":      {"libpng", "libjpeg-turbo", "freetype"},
+	"zip":     {"libzip"},
+	"intl":    {"icu-libs"},
+	"exif":    {},
+	"soap":    {"libxml2"},
+	"sockets": {},
 }
 
 // ImageConfig holds everything needed to build a PHP image.
@@ -123,7 +127,12 @@ func generateDockerfile(cfg ImageConfig) string {
 	var native, pecl []string
 	var buildDeps, runtimeDeps []string
 
-	for _, ext := range cfg.Extensions {
+	// Sort extensions for deterministic Dockerfile output
+	sorted := make([]string, len(cfg.Extensions))
+	copy(sorted, cfg.Extensions)
+	sort.Strings(sorted)
+
+	for _, ext := range sorted {
 		if deps, ok := nativeExtDeps[ext]; ok {
 			native = append(native, ext)
 			buildDeps = append(buildDeps, deps...)
@@ -211,10 +220,10 @@ func unionExtensions(lists ...[]string) []string {
 }
 
 func imageHash(cfg ImageConfig) string {
-	sorted := make([]string, len(cfg.Extensions))
-	copy(sorted, cfg.Extensions)
-	sort.Strings(sorted)
-
-	h := sha256.Sum256([]byte(strings.Join(sorted, ",")))
+	// Hash the full Dockerfile content so the tag changes
+	// whenever the image definition changes (extensions, base
+	// packages, composer, etc.)
+	content := generateDockerfile(cfg)
+	h := sha256.Sum256([]byte(content))
 	return fmt.Sprintf("%x", h[:4])
 }
