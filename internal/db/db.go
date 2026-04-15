@@ -64,6 +64,34 @@ func ListLocalSnapshots(projectDir, dbName string) ([]string, error) {
 	return listSnapshots(baseDir, dbName)
 }
 
+// ListAllSnapshots returns all snapshots across all databases in the global snapshot directory.
+// Each entry is prefixed with the database name: "dbname/snapshot-name".
+func ListAllSnapshots() ([]string, error) {
+	baseDir := config.SnapshotDir()
+	dbs, err := os.ReadDir(baseDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing snapshot databases: %w", err)
+	}
+
+	var all []string
+	for _, db := range dbs {
+		if !db.IsDir() {
+			continue
+		}
+		snapshots, err := listSnapshots(baseDir, db.Name())
+		if err != nil {
+			continue
+		}
+		for _, s := range snapshots {
+			all = append(all, s)
+		}
+	}
+	return all, nil
+}
+
 // listSnapshots is the testable core that lists snapshots under baseDir.
 // Snapshots can be directories (mydumper/pg_dump -Fd) or files (.sql, .sql.gz).
 func listSnapshots(baseDir, dbName string) ([]string, error) {

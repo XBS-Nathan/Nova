@@ -19,6 +19,7 @@ func init() {
 	snapshotCmd.AddCommand(snapshotListCmd)
 	snapshotCmd.Flags().Bool("local", false, "Store snapshot in project .nova/ directory")
 	snapshotRestoreCmd.Flags().Bool("local", false, "Restore from project .nova/ directory")
+	snapshotRestoreCmd.Flags().String("from", "", "Restore snapshot from another database (e.g. --from xlinx_1)")
 	snapshotListCmd.Flags().Bool("local", false, "List snapshots from project .nova/ directory")
 }
 
@@ -70,12 +71,21 @@ var snapshotRestoreCmd = &cobra.Command{
 		}
 
 		local, _ := cmd.Flags().GetBool("local")
-		snapshots, err := listSnapshotsForFlags(p, local, p.Config.DB)
+		fromDB, _ := cmd.Flags().GetString("from")
+
+		var snapshots []string
+		if local {
+			snapshots, err = listSnapshotsForFlags(p, true, p.Config.DB)
+		} else if fromDB != "" {
+			snapshots, err = listSnapshotsForFlags(p, false, fromDB)
+		} else {
+			snapshots, err = db.ListAllSnapshots()
+		}
 		if err != nil {
 			return err
 		}
 		if len(snapshots) == 0 {
-			return fmt.Errorf("no snapshots found for %s", p.Config.DB)
+			return fmt.Errorf("no snapshots found")
 		}
 
 		var snapshotPath string
@@ -93,18 +103,21 @@ var snapshotRestoreCmd = &cobra.Command{
 			sort.Strings(snapshots)
 			options := make([]string, len(snapshots))
 			for i, s := range snapshots {
-				options[i] = filepath.Base(s)
+				// Show "dbname/snapshot" for cross-database snapshots
+				dir := filepath.Base(filepath.Dir(s))
+				options[i] = dir + "/" + filepath.Base(s)
 			}
 			selected, err := pterm.DefaultInteractiveSelect.
 				WithOptions(options).
 				WithDefaultOption(options[len(options)-1]).
+				WithFilter(true).
 				Show("Select snapshot to restore")
 			if err != nil {
 				return fmt.Errorf("selecting snapshot: %w", err)
 			}
-			for _, s := range snapshots {
-				if filepath.Base(s) == selected {
-					snapshotPath = s
+			for i, opt := range options {
+				if opt == selected {
+					snapshotPath = snapshots[i]
 					break
 				}
 			}
