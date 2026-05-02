@@ -22,18 +22,22 @@ func TestMain(m *testing.M) {
 
 // mockDocker records calls and can return errors.
 type mockDocker struct {
-	upCalled bool
-	upPHP    []docker.PHPVersion
-	downCalled bool
-	execCalls  [][]string
-	upErr      error
-	downErr    error
-	execErr    error
+	upCalled        bool
+	upPHP           []docker.PHPVersion
+	upFrankenPHP    []docker.FrankenPHPProject
+	upForceRecreate bool
+	downCalled      bool
+	execCalls       [][]string
+	upErr           error
+	downErr         error
+	execErr         error
 }
 
-func (m *mockDocker) Up(php []docker.PHPVersion, forceRecreate bool) error {
+func (m *mockDocker) Up(php []docker.PHPVersion, frankenphp []docker.FrankenPHPProject, forceRecreate bool) error {
 	m.upCalled = true
 	m.upPHP = php
+	m.upFrankenPHP = frankenphp
+	m.upForceRecreate = forceRecreate
 	return m.upErr
 }
 func (m *mockDocker) Down() error { m.downCalled = true; return m.downErr }
@@ -58,6 +62,9 @@ type mockCaddy struct {
 	unlinkCalled bool
 	reloadCalled bool
 	linkSite     string
+	linkDocroot  string
+	linkUpstream caddy.Upstream
+	linkPortProxies []caddy.PortProxy
 	unlinkSite   string
 	startErr     error
 	stopErr      error
@@ -68,9 +75,12 @@ type mockCaddy struct {
 
 func (m *mockCaddy) Start() error { m.startCalled = true; return m.startErr }
 func (m *mockCaddy) Stop() error  { m.stopCalled = true; return m.stopErr }
-func (m *mockCaddy) Link(site, docroot, phpService string, portProxies []caddy.PortProxy) error {
+func (m *mockCaddy) Link(siteName, docroot string, upstream caddy.Upstream, portProxies []caddy.PortProxy) error {
 	m.linkCalled = true
-	m.linkSite = site
+	m.linkSite = siteName
+	m.linkDocroot = docroot
+	m.linkUpstream = upstream
+	m.linkPortProxies = portProxies
 	return m.linkErr
 }
 func (m *mockCaddy) Unlink(site string) error {
@@ -102,6 +112,7 @@ func newTestProject(t *testing.T, name string) *project.Project {
 			Domain:   name + ".test",
 			PHP:      "8.2",
 			Node:     "22",
+			Runtime:  config.RuntimeFPM,
 			DBDriver: "mysql",
 			DB:       name,
 			MySQL: config.MySQLConfig{
@@ -127,9 +138,6 @@ func captureOutput(
 		Docker: docker,
 		Caddy:  caddy,
 		Hosts:  hosts,
-		PHPService: func(v string) string {
-			return "php" + strings.ReplaceAll(v, ".", "")
-		},
 		Docroot: func(p *project.Project) string {
 			return "/srv/" + p.Name + "/public"
 		},
@@ -149,7 +157,7 @@ func TestStart_CallsServicesInOrder(t *testing.T) {
 
 	// Start will fail at db.NewStore because mysql isn't running,
 	// but we can verify docker, caddy, and hosts were called first.
-	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	if !d.upCalled {
 		t.Error("Docker.Up() was not called")
@@ -175,7 +183,7 @@ func TestStart_StopsOnDockerError(t *testing.T) {
 	lc, _ := captureOutput(t, d, c, h)
 	p := newTestProject(t, "myapp")
 
-	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -198,7 +206,7 @@ func TestStart_StopsOnCaddyLinkError(t *testing.T) {
 	lc, _ := captureOutput(t, d, c, h)
 	p := newTestProject(t, "myapp")
 
-	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -218,7 +226,7 @@ func TestStart_StopsOnHostsError(t *testing.T) {
 	lc, _ := captureOutput(t, d, c, h)
 	p := newTestProject(t, "myapp")
 
-	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	err := lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")
@@ -239,7 +247,7 @@ func TestStart_RunsHooksViaDockerExec(t *testing.T) {
 	// Will fail at db step, but hooks come after db — so we need db to succeed.
 	// Since we can't mock db.NewStore, we test that hooks are attempted
 	// by checking that Start gets past hosts (it will fail at db).
-	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	// db.NewStore will fail (no real mysql), so hooks won't run.
 	// We verify the services before db were called correctly.
@@ -408,7 +416,7 @@ func TestStart_CallsAllServices(t *testing.T) {
 	lc, _ := captureOutput(t, d, c, h)
 	p := newTestProject(t, "myapp")
 
-	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, false)
+	_ = lc.Start(p, []docker.PHPVersion{{Version: "8.2"}}, nil, false)
 
 	// Verify all services were called (output is tested visually)
 	if !d.upCalled {
