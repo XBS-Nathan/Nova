@@ -424,8 +424,8 @@ func generateDockerfile(cfg ImageConfig) string {
     }
 
     fmt.Fprintf(&b, "    && docker-php-ext-install %s \\\n", allNative)
-    fmt.Fprintf(&b, "    && pecl install redis xdebug swoole \\\n")
-    fmt.Fprintf(&b, "    && docker-php-ext-enable redis swoole \\\n")
+    fmt.Fprintf(&b, "    && pecl install redis xdebug \\\n")
+    fmt.Fprintf(&b, "    && docker-php-ext-enable redis \\\n")
 
     if len(pecl) > 0 {
         fmt.Fprintf(&b, "    && pecl install %s \\\n", strings.Join(pecl, " "))
