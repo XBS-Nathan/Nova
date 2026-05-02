@@ -129,6 +129,22 @@ func writeDockerfile(cfg ImageConfig) (string, error) {
 		return "", fmt.Errorf("writing my.cnf: %w", err)
 	}
 
+	if cfg.runtime() == "frankenphp" {
+		caddyfile := `{
+    frankenphp
+    auto_https off
+    admin off
+}
+:8000 {
+    root * /srv/{$NOVA_APP}/public
+    php_server
+}
+`
+		if err := os.WriteFile(filepath.Join(dir, "Caddyfile"), []byte(caddyfile), 0644); err != nil {
+			return "", fmt.Errorf("writing Caddyfile: %w", err)
+		}
+	}
+
 	return dir, nil
 }
 

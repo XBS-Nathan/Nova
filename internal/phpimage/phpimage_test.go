@@ -1,6 +1,8 @@
 package phpimage
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -183,5 +185,42 @@ func TestGenerateDockerfile_FrankenPHP_KeepsExtensionInstall(t *testing.T) {
 	}
 	if !strings.Contains(df, "pecl install") {
 		t.Errorf("FrankenPHP Dockerfile missing pecl install, got:\n%s", df)
+	}
+}
+
+func TestWriteDockerfile_FrankenPHPWritesCaddyfile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // GlobalDir() resolves under HOME; cannot use t.Parallel with t.Setenv
+
+	dir, err := writeDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if err != nil {
+		t.Fatalf("writeDockerfile: %v", err)
+	}
+
+	caddyfilePath := filepath.Join(dir, "Caddyfile")
+	data, err := os.ReadFile(caddyfilePath)
+	if err != nil {
+		t.Fatalf("reading Caddyfile: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"frankenphp", "auto_https off", "admin off", "{$NOVA_APP}", "php_server"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Caddyfile missing %q, got:\n%s", want, content)
+		}
+	}
+}
+
+func TestWriteDockerfile_FPMDoesNotWriteCaddyfile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // cannot use t.Parallel with t.Setenv
+
+	dir, err := writeDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if err != nil {
+		t.Fatalf("writeDockerfile: %v", err)
+	}
+
+	switch _, err := os.Stat(filepath.Join(dir, "Caddyfile")); {
+	case err == nil:
+		t.Error("FPM should not write Caddyfile, but it exists")
+	case !os.IsNotExist(err):
+		t.Errorf("FPM Caddyfile stat: unexpected error: %v", err)
 	}
 }
