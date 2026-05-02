@@ -41,10 +41,22 @@ type PHPVersion struct {
 	Ports      []string // extra ports to forward via Caddy, e.g. ["8080"]
 }
 
+// FrankenPHPProject describes a per-project FrankenPHP service.
+// Only the active project's FrankenPHP service is included in the compose file.
+type FrankenPHPProject struct {
+	Name       string   // sanitized project name, used for service name and NOVA_APP
+	PHPVersion string
+	Extensions []string
+	Octane     bool
+	Workdir    string   // "/srv/<name>"
+	Ports      []string // mirrors PHPVersion.Ports for parity
+}
+
 // ComposeOptions controls which services are included in the compose file.
 type ComposeOptions struct {
-	ProjectsDir   string
-	PHP           []PHPVersion
+	ProjectsDir string
+	PHP         []PHPVersion
+	FrankenPHP  []FrankenPHPProject
 	MySQLVersions    []string // e.g. ["8.0", "9.0"]
 	PostgresVersions []string // e.g. ["15", "16"]
 	RedisVersions    []string // e.g. ["7", "8"]
