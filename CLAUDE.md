@@ -72,6 +72,7 @@ internal/
 - **PHP images** — built from generated Dockerfiles; extensions unioned across projects sharing a version; content-addressed tags prevent unnecessary rebuilds
 - **Hooks run in containers** — via `docker.Exec` into the PHP container, not on the host
 - **Xdebug** — toggled by writing/removing an ini file in a mounted conf.d directory + PHP-FPM reload signal
+- **PHP runtime selection** — `.nova.yaml` `runtime` (`fpm` | `frankenphp`) selects the per-project PHP runtime. FPM uses the shared container by PHP version; FrankenPHP runs a per-project container fronted by the shared Caddy via `reverse_proxy`. `octane: true` enables Laravel Octane worker mode (requires `runtime: frankenphp`). `lifecycle.PHPContainer(cfg, name)` resolves the right exec target everywhere.
 
 ### Database Support
 

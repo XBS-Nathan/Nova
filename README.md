@@ -222,6 +222,19 @@ shared_services:
       MEILI_NO_ANALYTICS: "true"
 ```
 
+### Runtime: PHP-FPM (default) or FrankenPHP
+
+By default each project uses the shared PHP-FPM container. Opt into FrankenPHP per project:
+
+```yaml
+runtime: frankenphp   # default: fpm
+octane: true          # optional, requires runtime: frankenphp
+```
+
+- `runtime: frankenphp` runs FrankenPHP in classic mode. The site is fronted by the shared Caddy via `reverse_proxy` to a per-project `<project>_frankenphp` container on port 8000.
+- `octane: true` additionally runs `php artisan octane:start --server=frankenphp`, giving you Laravel Octane's persistent worker mode.
+- All other PHP-related commands (`nova php`, `nova artisan`, `nova xdebug`, hooks, workers) auto-target the right container.
+
 ### Global: `~/.nova/config.yaml`
 
 Optional. Created automatically with defaults on first `nova start`.
