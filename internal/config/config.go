@@ -194,6 +194,9 @@ func Load(projectDir string) (*ProjectConfig, error) {
 	}
 
 	fillDefaults(cfg, projectDir)
+	if cfg.Octane && cfg.Runtime != RuntimeFrankenPHP {
+		return nil, fmt.Errorf("parsing %s: octane: true requires runtime: frankenphp", path)
+	}
 	return cfg, nil
 }
 

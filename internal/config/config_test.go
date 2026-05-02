@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -344,5 +345,19 @@ func TestLoad_RuntimeFrankenPHP(t *testing.T) {
 	}
 	if !cfg.Octane {
 		t.Error("Octane = false, want true")
+	}
+}
+
+func TestLoad_OctaneRequiresFrankenPHP(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestConfig(t, dir, "octane: true\n") // runtime omitted → defaults to fpm
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load: want error, got nil")
+	}
+	if !strings.Contains(err.Error(), "octane") {
+		t.Errorf("error = %v, want it to mention octane", err)
 	}
 }
