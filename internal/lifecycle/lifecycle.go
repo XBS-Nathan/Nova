@@ -109,10 +109,7 @@ func (l *Lifecycle) Start(
 		})
 	}
 
-	upstream := caddy.Upstream{Kind: "fastcgi", Address: phpSvc + ":9000"}
-	if p.Config.Runtime == config.RuntimeFrankenPHP {
-		upstream = caddy.Upstream{Kind: "reverse_proxy", Address: phpSvc + ":8000"}
-	}
+	upstream := upstreamFor(p.Config, phpSvc)
 
 	if err := l.spin("Linking site", func() error {
 		return l.Caddy.Link(p.Name, docroot, upstream, portProxies)
@@ -284,6 +281,16 @@ func (l *Lifecycle) spin(msg string, fn func() error) error {
 // hookPrefix returns the naming prefix for a project's background processes.
 func hookPrefix(projectName string) string {
 	return "nova:" + projectName + ":"
+}
+
+// upstreamFor returns the Caddy upstream configuration for a project based on
+// its runtime. FPM and Octane modes use FastCGI on port 9000; classic
+// FrankenPHP mode uses reverse_proxy on port 8000.
+func upstreamFor(cfg *config.ProjectConfig, phpSvc string) caddy.Upstream {
+	if cfg.Runtime == config.RuntimeFrankenPHP {
+		return caddy.Upstream{Kind: "reverse_proxy", Address: phpSvc + ":8000"}
+	}
+	return caddy.Upstream{Kind: "fastcgi", Address: phpSvc + ":9000"}
 }
 
 // wrapHookCommand wraps a background hook command so it can be identified

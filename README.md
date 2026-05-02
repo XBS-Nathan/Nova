@@ -117,7 +117,7 @@ nova trust
 | `nova snapshot list` | List available snapshots |
 | **Debugging** | |
 | `nova logs [service]` | Stream container logs (all or specific service) |
-| `nova xdebug on/off` | Toggle Xdebug (sub-second, no container restart) |
+| `nova xdebug on/off` | Toggle Xdebug. FPM and Octane modes do a graceful PHP reload (sub-second, no container restart). Classic FrankenPHP mode restarts the project container (~2–3s). |
 | `nova info` | Show project URL, PHP version, DB, service status |
 | **Config** | |
 | `nova use php <version>` | Set the PHP version for this project |
