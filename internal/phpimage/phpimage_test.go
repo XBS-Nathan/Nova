@@ -115,3 +115,37 @@ func TestImageHash(t *testing.T) {
 		t.Errorf("hash length = %d, want 8", len(h1))
 	}
 }
+
+func TestImageTag_FPM(t *testing.T) {
+	t.Parallel()
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if !strings.HasPrefix(tag, "nova-fpm:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-fpm:8.3-", tag)
+	}
+}
+
+func TestImageTag_FrankenPHP(t *testing.T) {
+	t.Parallel()
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if !strings.HasPrefix(tag, "nova-frankenphp:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-frankenphp:8.3-", tag)
+	}
+}
+
+func TestImageTag_DefaultRuntimeIsFPM(t *testing.T) {
+	t.Parallel()
+	// Empty Runtime should be treated as fpm so existing callers keep working.
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3"})
+	if !strings.HasPrefix(tag, "nova-fpm:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-fpm:8.3-", tag)
+	}
+}
+
+func TestImageTag_RuntimesProduceDifferentTags(t *testing.T) {
+	t.Parallel()
+	fpm := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "fpm", Extensions: []string{"gd"}})
+	franken := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp", Extensions: []string{"gd"}})
+	if fpm == franken {
+		t.Errorf("expected different tags, got %q for both", fpm)
+	}
+}

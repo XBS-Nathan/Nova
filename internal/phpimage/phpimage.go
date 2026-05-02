@@ -45,6 +45,15 @@ var nativeExtRuntime = map[string][]string{
 type ImageConfig struct {
 	PHPVersion string
 	Extensions []string
+	Runtime    string // "fpm" (default) or "frankenphp"
+}
+
+// runtime returns the runtime, defaulting to "fpm" when unset.
+func (c ImageConfig) runtime() string {
+	if c.Runtime == "" {
+		return "fpm"
+	}
+	return c.Runtime
 }
 
 // EnsureBuilt builds the PHP-FPM image if it doesn't already exist.
@@ -95,7 +104,7 @@ func buildImage(cfg ImageConfig, noCache bool) error {
 // ImageTag returns the Docker image tag for an image config.
 func ImageTag(cfg ImageConfig) string {
 	hash := imageHash(cfg)
-	return fmt.Sprintf("nova-php:%s-%s", cfg.PHPVersion, hash)
+	return fmt.Sprintf("nova-%s:%s-%s", cfg.runtime(), cfg.PHPVersion, hash)
 }
 
 func writeDockerfile(cfg ImageConfig) (string, error) {
