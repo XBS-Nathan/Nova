@@ -257,6 +257,45 @@ func generateCompose(opts ComposeOptions) string {
 		b.WriteString("    networks: [nova]\n\n")
 	}
 
+	// FrankenPHP services (one per active opted-in project)
+	for _, fp := range opts.FrankenPHP {
+		img := phpimage.ImageTag(phpimage.ImageConfig{
+			PHPVersion: fp.PHPVersion,
+			Extensions: fp.Extensions,
+			Runtime:    config.RuntimeFrankenPHP,
+		})
+		fmt.Fprintf(&b, "  %s_frankenphp:\n", fp.Name)
+		fmt.Fprintf(&b, "    image: %s\n", img)
+		b.WriteString("    pull_policy: never\n")
+		fmt.Fprintf(&b, "    user: \"%d:%d\"\n", os.Getuid(), os.Getgid())
+		b.WriteString("    restart: unless-stopped\n")
+		fmt.Fprintf(&b, "    working_dir: %s\n", fp.Workdir)
+		b.WriteString("    environment:\n")
+		b.WriteString("      NOVA: \"true\"\n")
+		fmt.Fprintf(&b, "      NOVA_APP: %q\n", fp.Name)
+		if fp.Octane {
+			b.WriteString("    command: [\"php\", \"artisan\", \"octane:start\",")
+			b.WriteString(" \"--server=frankenphp\", \"--host=0.0.0.0\", \"--port=8000\",")
+			b.WriteString(" \"--workers=auto\", \"--max-requests=500\"]\n")
+		}
+		if throttle := config.LoadThrottle(); throttle != nil {
+			b.WriteString("    deploy:\n")
+			b.WriteString("      resources:\n")
+			b.WriteString("        limits:\n")
+			if throttle.CPUs != "" {
+				fmt.Fprintf(&b, "          cpus: \"%s\"\n", throttle.CPUs)
+			}
+			if throttle.Memory != "" {
+				fmt.Fprintf(&b, "          memory: %s\n", throttle.Memory)
+			}
+		}
+		b.WriteString("    volumes:\n")
+		fmt.Fprintf(&b, "      - %s:/srv\n", opts.ProjectsDir)
+		fmt.Fprintf(&b, "      - %s/php/%s/conf.d:/usr/local/etc/php/conf.custom\n",
+			globalDir, fp.PHPVersion)
+		b.WriteString("    networks: [nova]\n\n")
+	}
+
 	// MySQL (one per version)
 	for i, ver := range opts.MySQLVersions {
 		name := ServiceName("mysql", ver, len(opts.MySQLVersions))
