@@ -149,3 +149,39 @@ func TestImageTag_RuntimesProduceDifferentTags(t *testing.T) {
 		t.Errorf("expected different tags, got %q for both", fpm)
 	}
 }
+
+func TestGenerateDockerfile_FPM_BaseImage(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if !strings.Contains(df, "FROM php:8.3-fpm-alpine") {
+		t.Errorf("FPM Dockerfile missing fpm base, got:\n%s", df)
+	}
+	if !strings.Contains(df, "php-fpm.d/www.conf") {
+		t.Errorf("FPM Dockerfile missing www.conf strip, got:\n%s", df)
+	}
+}
+
+func TestGenerateDockerfile_FrankenPHP_BaseImage(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if !strings.Contains(df, "FROM dunglas/frankenphp:1-php8.3-alpine") {
+		t.Errorf("FrankenPHP Dockerfile missing frankenphp base, got:\n%s", df)
+	}
+	if strings.Contains(df, "php-fpm.d/www.conf") {
+		t.Errorf("FrankenPHP Dockerfile should not strip www.conf, got:\n%s", df)
+	}
+	if !strings.Contains(df, "COPY Caddyfile /etc/caddy/Caddyfile") {
+		t.Errorf("FrankenPHP Dockerfile missing Caddyfile copy, got:\n%s", df)
+	}
+}
+
+func TestGenerateDockerfile_FrankenPHP_KeepsExtensionInstall(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp", Extensions: []string{"gd"}})
+	if !strings.Contains(df, "docker-php-ext-install") {
+		t.Errorf("FrankenPHP Dockerfile missing docker-php-ext-install, got:\n%s", df)
+	}
+	if !strings.Contains(df, "pecl install") {
+		t.Errorf("FrankenPHP Dockerfile missing pecl install, got:\n%s", df)
+	}
+}

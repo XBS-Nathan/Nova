@@ -153,12 +153,16 @@ func generateDockerfile(cfg ImageConfig) string {
 
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "FROM php:%s-fpm-alpine\n\n", cfg.PHPVersion)
+	switch cfg.runtime() {
+	case "frankenphp":
+		fmt.Fprintf(&b, "FROM dunglas/frankenphp:1-php%s-alpine\n\n", cfg.PHPVersion)
+	default:
+		fmt.Fprintf(&b, "FROM php:%s-fpm-alpine\n\n", cfg.PHPVersion)
+	}
 
 	// Install runtime libs permanently (survive the del step)
 	allRuntimeDeps := append(baseRuntimeDeps, runtimeDeps...)
-	fmt.Fprintf(&b, "RUN apk add --no-cache %s\n\n",
-		strings.Join(allRuntimeDeps, " "))
+	fmt.Fprintf(&b, "RUN apk add --no-cache %s\n\n", strings.Join(allRuntimeDeps, " "))
 
 	// Install build deps, compile extensions, then remove build deps
 	allBuildDeps := append(baseBuildDeps, buildDeps...)
@@ -190,14 +194,21 @@ func generateDockerfile(cfg ImageConfig) string {
 	fmt.Fprintf(&b, "RUN mkdir -p /usr/local/etc/php/conf.custom\n")
 	fmt.Fprintf(&b, "ENV PHP_INI_SCAN_DIR=/usr/local/etc/php/conf.d:/usr/local/etc/php/conf.custom\n\n")
 
-	// Allow FPM to run as any UID by removing the user/group directives.
-	// The actual UID is set via docker compose user: directive at runtime.
-	fmt.Fprintf(&b, "RUN sed -i '/^user = /d; /^group = /d' /usr/local/etc/php-fpm.d/www.conf\n\n")
+	if cfg.runtime() == "fpm" {
+		// Allow FPM to run as any UID by removing the user/group directives.
+		// The actual UID is set via docker compose user: directive at runtime.
+		fmt.Fprintf(&b, "RUN sed -i '/^user = /d; /^group = /d' /usr/local/etc/php-fpm.d/www.conf\n\n")
+	}
 
 	fmt.Fprintf(&b, "COPY --from=composer:latest /usr/bin/composer /usr/bin/composer\n")
 	fmt.Fprintf(&b, "COPY php.ini /usr/local/etc/php/php.ini\n")
-	fmt.Fprintf(&b, "COPY my.cnf /etc/my.cnf.d/dev.cnf\n\n")
-	fmt.Fprintf(&b, "WORKDIR /srv\n")
+	fmt.Fprintf(&b, "COPY my.cnf /etc/my.cnf.d/dev.cnf\n")
+
+	if cfg.runtime() == "frankenphp" {
+		fmt.Fprintf(&b, "COPY Caddyfile /etc/caddy/Caddyfile\n")
+	}
+
+	fmt.Fprintf(&b, "\nWORKDIR /srv\n")
 
 	return b.String()
 }
