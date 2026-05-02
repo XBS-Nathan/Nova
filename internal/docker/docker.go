@@ -112,6 +112,11 @@ func Down() error {
 	return composeQuiet("down")
 }
 
+// Restart restarts a single compose service. Output is streamed to stdout/stderr.
+func Restart(service string) error {
+	return compose("restart", service)
+}
+
 // Exec runs an interactive command in a running service container (with TTY).
 func Exec(service, workdir string, args ...string) error {
 	execArgs := append([]string{"compose", "-f", ComposeFile(), "exec", "-w", workdir, service}, args...)

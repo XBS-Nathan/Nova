@@ -50,22 +50,20 @@ var startCmd = &cobra.Command{
 		imgCfg := phpimage.ImageConfig{
 			PHPVersion: p.Config.PHP,
 			Extensions: p.Config.Extensions,
+			Runtime:    p.Config.Runtime,
 		}
 		built, err := phpimage.EnsureBuilt(imgCfg)
 		if err != nil {
 			return err
 		}
 
-		php := []docker.PHPVersion{
-			{
-				Version:    p.Config.PHP,
-				Extensions: p.Config.Extensions,
-				Ports:      p.Config.Ports,
-			},
+		php, frankenphp, err := runtimePayload(p, global)
+		if err != nil {
+			return err
 		}
 
 		lc := newLifecycle(global, p.Config)
-		return lc.Start(p, php, built)
+		return lc.Start(p, php, frankenphp, built)
 	},
 }
 
@@ -113,6 +111,34 @@ func nodeServiceForProject(
 	}
 }
 
+// runtimePayload returns the (php, frankenphp) slices to pass to lifecycle.Start
+// based on the project's runtime configuration.
+func runtimePayload(
+	p *project.Project,
+	global *config.GlobalConfig,
+) ([]docker.PHPVersion, []docker.FrankenPHPProject, error) {
+	if p.Config.Runtime == config.RuntimeFrankenPHP {
+		rel, err := filepath.Rel(global.ProjectsDir, p.Dir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolving project workdir: %w", err)
+		}
+		workdir := filepath.Join("/srv", rel)
+		return nil, []docker.FrankenPHPProject{{
+			Name:       p.Name,
+			PHPVersion: p.Config.PHP,
+			Extensions: p.Config.Extensions,
+			Octane:     p.Config.Octane,
+			Workdir:    workdir,
+			Ports:      p.Config.Ports,
+		}}, nil
+	}
+	return []docker.PHPVersion{{
+		Version:    p.Config.PHP,
+		Extensions: p.Config.Extensions,
+		Ports:      p.Config.Ports,
+	}}, nil, nil
+}
+
 // workerServicesForProject builds ServiceDefinitions for each configured worker.
 // Workers run in the project's PHP image with auto-restart.
 func workerServicesForProject(
@@ -132,6 +158,7 @@ func workerServicesForProject(
 	image := phpimage.ImageTag(phpimage.ImageConfig{
 		PHPVersion: p.Config.PHP,
 		Extensions: p.Config.Extensions,
+		Runtime:    p.Config.Runtime,
 	})
 
 	services := make(map[string]config.ServiceDefinition, len(p.Config.Workers))
@@ -168,7 +195,6 @@ func newLifecycle(
 		},
 		Caddy:         caddy.Service{},
 		Hosts:         hosts.Service{},
-		PHPService:    docker.PHPServiceName,
 		DBServiceName:   dbServiceName,
 		ServiceVersions: global.Versions,
 		Docroot: func(p *project.Project) string {

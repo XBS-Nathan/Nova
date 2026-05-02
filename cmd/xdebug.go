@@ -9,6 +9,7 @@ import (
 
 	"github.com/XBS-Nathan/nova/internal/config"
 	"github.com/XBS-Nathan/nova/internal/docker"
+	"github.com/XBS-Nathan/nova/internal/lifecycle"
 	"github.com/XBS-Nathan/nova/internal/project"
 )
 
@@ -27,7 +28,7 @@ var xdebugCmd = &cobra.Command{
 		version := p.Config.PHP
 		iniDir := filepath.Join(config.GlobalDir(), "php", version, "conf.d")
 		iniPath := filepath.Join(iniDir, "xdebug.ini")
-		svc := docker.PHPServiceName(version)
+		svc := lifecycle.PHPContainer(p.Config, p.Name)
 
 		switch args[0] {
 		case "on":
@@ -46,10 +47,24 @@ var xdebugCmd = &cobra.Command{
 			return fmt.Errorf("usage: dev xdebug [on|off]")
 		}
 
-		// Graceful PHP-FPM reload (no container restart)
-		fmt.Printf("  → Reloading PHP-FPM...\n")
-		if err := docker.Exec(svc, "/srv", "kill", "-USR2", "1"); err != nil {
-			return fmt.Errorf("reloading PHP-FPM: %w", err)
+		fmt.Printf("  → Reloading PHP runtime...\n")
+		switch p.Config.Runtime {
+		case config.RuntimeFrankenPHP:
+			if p.Config.Octane {
+				// Octane reload re-execs PHP workers with the new ini.
+				if err := docker.Exec(svc, "/srv", "php", "artisan", "octane:reload"); err != nil {
+					return fmt.Errorf("reloading octane: %w", err)
+				}
+			} else {
+				// Classic FrankenPHP: restart the container.
+				if err := docker.Restart(svc); err != nil {
+					return fmt.Errorf("restarting frankenphp: %w", err)
+				}
+			}
+		default:
+			if err := docker.Exec(svc, "/srv", "kill", "-USR2", "1"); err != nil {
+				return fmt.Errorf("reloading PHP-FPM: %w", err)
+			}
 		}
 
 		fmt.Printf("✓ Xdebug %s for PHP %s\n", args[0], version)
