@@ -17,7 +17,7 @@ import (
 
 // DockerService manages shared and per-project Docker containers.
 type DockerService interface {
-	Up(php []docker.PHPVersion, forceRecreate bool) error
+	Up(php []docker.PHPVersion, frankenphp []docker.FrankenPHPProject, forceRecreate bool) error
 	Down() error
 	Exec(service string, workdir string, args ...string) error
 	ExecDetached(service string, workdir string, args ...string) error
@@ -29,7 +29,7 @@ type DockerService interface {
 type CaddyService interface {
 	Start() error
 	Stop() error
-	Link(siteName, docroot, phpService string, portProxies []caddy.PortProxy) error
+	Link(siteName, docroot string, upstream caddy.Upstream, portProxies []caddy.PortProxy) error
 	Unlink(siteName string) error
 	Reload() error
 }
@@ -44,7 +44,6 @@ type Lifecycle struct {
 	Docker             DockerService
 	Caddy              CaddyService
 	Hosts              HostsService
-	PHPService         func(version string) string
 	DBServiceName      string
 	ServiceVersions    config.ServiceVersions
 	Docroot            func(p *project.Project) string
@@ -62,15 +61,20 @@ func (l *Lifecycle) printf(format string, a ...any) {
 }
 
 // Start brings up the full dev environment for a project.
-func (l *Lifecycle) Start(p *project.Project, php []docker.PHPVersion, forceRecreate bool) error {
+func (l *Lifecycle) Start(
+	p *project.Project,
+	php []docker.PHPVersion,
+	frankenphp []docker.FrankenPHPProject,
+	forceRecreate bool,
+) error {
 	pterm.DefaultSection.Printfln("Starting %s", p.Name)
 
-	phpSvc := l.PHPService(p.Config.PHP)
+	phpSvc := PHPContainer(p.Config, p.Name)
 	docroot := l.Docroot(p)
 	projectRoot := strings.TrimSuffix(docroot, "/public")
 
 	if err := l.spin("Starting services", func() error {
-		return l.Docker.Up(php, forceRecreate)
+		return l.Docker.Up(php, frankenphp, forceRecreate)
 	}); err != nil {
 		return fmt.Errorf("starting services: %w", err)
 	}
@@ -105,8 +109,10 @@ func (l *Lifecycle) Start(p *project.Project, php []docker.PHPVersion, forceRecr
 		})
 	}
 
+	upstream := upstreamFor(p.Config, phpSvc)
+
 	if err := l.spin("Linking site", func() error {
-		return l.Caddy.Link(p.Name, docroot, phpSvc, portProxies)
+		return l.Caddy.Link(p.Name, docroot, upstream, portProxies)
 	}); err != nil {
 		return fmt.Errorf("linking site: %w", err)
 	}
@@ -203,7 +209,7 @@ func (l *Lifecycle) Start(p *project.Project, php []docker.PHPVersion, forceRecr
 func (l *Lifecycle) Stop(p *project.Project) error {
 	pterm.DefaultSection.Printfln("Stopping %s", p.Name)
 
-	phpSvc := l.PHPService(p.Config.PHP)
+	phpSvc := PHPContainer(p.Config, p.Name)
 	docroot := l.Docroot(p)
 	projectRoot := strings.TrimSuffix(docroot, "/public")
 
@@ -275,6 +281,16 @@ func (l *Lifecycle) spin(msg string, fn func() error) error {
 // hookPrefix returns the naming prefix for a project's background processes.
 func hookPrefix(projectName string) string {
 	return "nova:" + projectName + ":"
+}
+
+// upstreamFor returns the Caddy upstream configuration for a project based on
+// its runtime. FPM and Octane modes use FastCGI on port 9000; classic
+// FrankenPHP mode uses reverse_proxy on port 8000.
+func upstreamFor(cfg *config.ProjectConfig, phpSvc string) caddy.Upstream {
+	if cfg.Runtime == config.RuntimeFrankenPHP {
+		return caddy.Upstream{Kind: "reverse_proxy", Address: phpSvc + ":8000"}
+	}
+	return caddy.Upstream{Kind: "fastcgi", Address: phpSvc + ":9000"}
 }
 
 // wrapHookCommand wraps a background hook command so it can be identified

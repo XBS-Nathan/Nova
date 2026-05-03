@@ -94,16 +94,15 @@ func restartServices() error {
 		return err
 	}
 
-	php := []docker.PHPVersion{{
-		Version:    p.Config.PHP,
-		Extensions: p.Config.Extensions,
-		Ports:      p.Config.Ports,
-	}}
+	php, frankenphp, err := runtimePayload(p, global)
+	if err != nil {
+		return fmt.Errorf("resolving runtime payload: %w", err)
+	}
 
 	svc := docker.Service{
 		ProjectsDir:    global.ProjectsDir,
 		Collected:      config.CollectVersions(global.ProjectsDir, p.Config),
 		MailpitVersion: global.Versions.Mailpit,
 	}
-	return svc.Up(php, true)
+	return svc.Up(php, frankenphp, true)
 }

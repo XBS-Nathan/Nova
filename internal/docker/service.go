@@ -9,10 +9,11 @@ type Service struct {
 	MailpitVersion string
 }
 
-func (s Service) Up(php []PHPVersion, forceRecreate bool) error {
+func (s Service) Up(php []PHPVersion, frankenphp []FrankenPHPProject, forceRecreate bool) error {
 	return Up(ComposeOptions{
 		ProjectsDir:      s.ProjectsDir,
 		PHP:              php,
+		FrankenPHP:       frankenphp,
 		MySQLVersions:    s.Collected.MySQL,
 		PostgresVersions: s.Collected.Postgres,
 		RedisVersions:    s.Collected.Redis,

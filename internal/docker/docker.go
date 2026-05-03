@@ -41,10 +41,22 @@ type PHPVersion struct {
 	Ports      []string // extra ports to forward via Caddy, e.g. ["8080"]
 }
 
+// FrankenPHPProject describes a per-project FrankenPHP service.
+// Only the active project's FrankenPHP service is included in the compose file.
+type FrankenPHPProject struct {
+	Name       string   // sanitized project name, used for service name and NOVA_APP
+	PHPVersion string
+	Extensions []string
+	Octane     bool
+	Workdir    string   // "/srv/<name>"
+	Ports      []string // mirrors PHPVersion.Ports for parity
+}
+
 // ComposeOptions controls which services are included in the compose file.
 type ComposeOptions struct {
-	ProjectsDir   string
-	PHP           []PHPVersion
+	ProjectsDir string
+	PHP         []PHPVersion
+	FrankenPHP  []FrankenPHPProject
 	MySQLVersions    []string // e.g. ["8.0", "9.0"]
 	PostgresVersions []string // e.g. ["15", "16"]
 	RedisVersions    []string // e.g. ["7", "8"]
@@ -98,6 +110,11 @@ func Logs(service string) error {
 // Down stops shared Docker services.
 func Down() error {
 	return composeQuiet("down")
+}
+
+// Restart restarts a single compose service. Output is streamed to stdout/stderr.
+func Restart(service string) error {
+	return compose("restart", service)
 }
 
 // Exec runs an interactive command in a running service container (with TTY).
@@ -194,6 +211,11 @@ func generateCompose(opts ComposeOptions) string {
 			extraPorts[port] = true
 		}
 	}
+	for _, fp := range opts.FrankenPHP {
+		for _, port := range fp.Ports {
+			extraPorts[port] = true
+		}
+	}
 
 	// Caddy (always included)
 	b.WriteString("  caddy:\n")
@@ -242,6 +264,45 @@ func generateCompose(opts ComposeOptions) string {
 		fmt.Fprintf(&b, "      - %s:/srv\n", opts.ProjectsDir)
 		fmt.Fprintf(&b, "      - %s/php/%s/conf.d:/usr/local/etc/php/conf.custom\n",
 			globalDir, php.Version)
+		b.WriteString("    networks: [nova]\n\n")
+	}
+
+	// FrankenPHP services (one per active opted-in project)
+	for _, fp := range opts.FrankenPHP {
+		img := phpimage.ImageTag(phpimage.ImageConfig{
+			PHPVersion: fp.PHPVersion,
+			Extensions: fp.Extensions,
+			Runtime:    config.RuntimeFrankenPHP,
+		})
+		fmt.Fprintf(&b, "  %s_frankenphp:\n", fp.Name)
+		fmt.Fprintf(&b, "    image: %s\n", img)
+		b.WriteString("    pull_policy: never\n")
+		fmt.Fprintf(&b, "    user: \"%d:%d\"\n", os.Getuid(), os.Getgid())
+		b.WriteString("    restart: unless-stopped\n")
+		fmt.Fprintf(&b, "    working_dir: %s\n", fp.Workdir)
+		b.WriteString("    environment:\n")
+		b.WriteString("      NOVA: \"true\"\n")
+		fmt.Fprintf(&b, "      NOVA_APP: %q\n", fp.Name)
+		if fp.Octane {
+			b.WriteString("    command: [\"php\", \"artisan\", \"octane:start\",")
+			b.WriteString(" \"--server=frankenphp\", \"--host=0.0.0.0\", \"--port=8000\",")
+			b.WriteString(" \"--workers=auto\", \"--max-requests=500\"]\n")
+		}
+		if throttle := config.LoadThrottle(); throttle != nil {
+			b.WriteString("    deploy:\n")
+			b.WriteString("      resources:\n")
+			b.WriteString("        limits:\n")
+			if throttle.CPUs != "" {
+				fmt.Fprintf(&b, "          cpus: \"%s\"\n", throttle.CPUs)
+			}
+			if throttle.Memory != "" {
+				fmt.Fprintf(&b, "          memory: %s\n", throttle.Memory)
+			}
+		}
+		b.WriteString("    volumes:\n")
+		fmt.Fprintf(&b, "      - %s:/srv\n", opts.ProjectsDir)
+		fmt.Fprintf(&b, "      - %s/php/%s/conf.d:/usr/local/etc/php/conf.custom\n",
+			globalDir, fp.PHPVersion)
 		b.WriteString("    networks: [nova]\n\n")
 	}
 

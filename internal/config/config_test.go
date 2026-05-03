@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -311,5 +312,52 @@ mysql_cnf:
 	}
 	if cfg.MysqlCnf["innodb_buffer_pool_size"] != "1G" {
 		t.Errorf("MysqlCnf[innodb_buffer_pool_size] = %q, want %q", cfg.MysqlCnf["innodb_buffer_pool_size"], "1G")
+	}
+}
+
+func TestLoad_RuntimeDefault(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Runtime != RuntimeFPM {
+		t.Errorf("Runtime default = %q, want %q", cfg.Runtime, RuntimeFPM)
+	}
+	if cfg.Octane {
+		t.Error("Octane default = true, want false")
+	}
+}
+
+func TestLoad_RuntimeFrankenPHP(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestConfig(t, dir, "runtime: frankenphp\noctane: true\n")
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Runtime != RuntimeFrankenPHP {
+		t.Errorf("Runtime = %q, want %q", cfg.Runtime, RuntimeFrankenPHP)
+	}
+	if !cfg.Octane {
+		t.Error("Octane = false, want true")
+	}
+}
+
+func TestLoad_OctaneRequiresFrankenPHP(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	writeTestConfig(t, dir, "octane: true\n") // runtime omitted → defaults to fpm
+
+	_, err := Load(dir)
+	if err == nil {
+		t.Fatal("Load: want error, got nil")
+	}
+	if !strings.Contains(err.Error(), "octane") {
+		t.Errorf("error = %v, want it to mention octane", err)
 	}
 }

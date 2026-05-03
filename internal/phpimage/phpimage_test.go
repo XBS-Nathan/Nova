@@ -1,6 +1,8 @@
 package phpimage
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -113,5 +115,112 @@ func TestImageHash(t *testing.T) {
 	}
 	if len(h1) != 8 {
 		t.Errorf("hash length = %d, want 8", len(h1))
+	}
+}
+
+func TestImageTag_FPM(t *testing.T) {
+	t.Parallel()
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if !strings.HasPrefix(tag, "nova-fpm:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-fpm:8.3-", tag)
+	}
+}
+
+func TestImageTag_FrankenPHP(t *testing.T) {
+	t.Parallel()
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if !strings.HasPrefix(tag, "nova-frankenphp:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-frankenphp:8.3-", tag)
+	}
+}
+
+func TestImageTag_DefaultRuntimeIsFPM(t *testing.T) {
+	t.Parallel()
+	// Empty Runtime should be treated as fpm so existing callers keep working.
+	tag := ImageTag(ImageConfig{PHPVersion: "8.3"})
+	if !strings.HasPrefix(tag, "nova-fpm:8.3-") {
+		t.Errorf("ImageTag = %q, want prefix nova-fpm:8.3-", tag)
+	}
+}
+
+func TestImageTag_RuntimesProduceDifferentTags(t *testing.T) {
+	t.Parallel()
+	fpm := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "fpm", Extensions: []string{"gd"}})
+	franken := ImageTag(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp", Extensions: []string{"gd"}})
+	if fpm == franken {
+		t.Errorf("expected different tags, got %q for both", fpm)
+	}
+}
+
+func TestGenerateDockerfile_FPM_BaseImage(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if !strings.Contains(df, "FROM php:8.3-fpm-alpine") {
+		t.Errorf("FPM Dockerfile missing fpm base, got:\n%s", df)
+	}
+	if !strings.Contains(df, "php-fpm.d/www.conf") {
+		t.Errorf("FPM Dockerfile missing www.conf strip, got:\n%s", df)
+	}
+}
+
+func TestGenerateDockerfile_FrankenPHP_BaseImage(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if !strings.Contains(df, "FROM dunglas/frankenphp:1-php8.3-alpine") {
+		t.Errorf("FrankenPHP Dockerfile missing frankenphp base, got:\n%s", df)
+	}
+	if strings.Contains(df, "php-fpm.d/www.conf") {
+		t.Errorf("FrankenPHP Dockerfile should not strip www.conf, got:\n%s", df)
+	}
+	if !strings.Contains(df, "COPY Caddyfile /etc/caddy/Caddyfile") {
+		t.Errorf("FrankenPHP Dockerfile missing Caddyfile copy, got:\n%s", df)
+	}
+}
+
+func TestGenerateDockerfile_FrankenPHP_KeepsExtensionInstall(t *testing.T) {
+	t.Parallel()
+	df := generateDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp", Extensions: []string{"gd"}})
+	if !strings.Contains(df, "docker-php-ext-install") {
+		t.Errorf("FrankenPHP Dockerfile missing docker-php-ext-install, got:\n%s", df)
+	}
+	if !strings.Contains(df, "pecl install") {
+		t.Errorf("FrankenPHP Dockerfile missing pecl install, got:\n%s", df)
+	}
+}
+
+func TestWriteDockerfile_FrankenPHPWritesCaddyfile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // GlobalDir() resolves under HOME; cannot use t.Parallel with t.Setenv
+
+	dir, err := writeDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "frankenphp"})
+	if err != nil {
+		t.Fatalf("writeDockerfile: %v", err)
+	}
+
+	caddyfilePath := filepath.Join(dir, "Caddyfile")
+	data, err := os.ReadFile(caddyfilePath)
+	if err != nil {
+		t.Fatalf("reading Caddyfile: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"frankenphp", "auto_https off", "admin off", "{$NOVA_APP}", "php_server"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("Caddyfile missing %q, got:\n%s", want, content)
+		}
+	}
+}
+
+func TestWriteDockerfile_FPMDoesNotWriteCaddyfile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // cannot use t.Parallel with t.Setenv
+
+	dir, err := writeDockerfile(ImageConfig{PHPVersion: "8.3", Runtime: "fpm"})
+	if err != nil {
+		t.Fatalf("writeDockerfile: %v", err)
+	}
+
+	switch _, err := os.Stat(filepath.Join(dir, "Caddyfile")); {
+	case err == nil:
+		t.Error("FPM should not write Caddyfile, but it exists")
+	case !os.IsNotExist(err):
+		t.Errorf("FPM Caddyfile stat: unexpected error: %v", err)
 	}
 }

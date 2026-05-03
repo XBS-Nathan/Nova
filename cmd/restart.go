@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/XBS-Nathan/nova/internal/config"
-	"github.com/XBS-Nathan/nova/internal/docker"
 	"github.com/XBS-Nathan/nova/internal/phpimage"
 	"github.com/XBS-Nathan/nova/internal/project"
 )
@@ -26,6 +25,7 @@ var restartCmd = &cobra.Command{
 		imgCfg := phpimage.ImageConfig{
 			PHPVersion: p.Config.PHP,
 			Extensions: p.Config.Extensions,
+			Runtime:    p.Config.Runtime,
 		}
 		built, err := phpimage.EnsureBuilt(imgCfg)
 		if err != nil {
@@ -35,13 +35,10 @@ var restartCmd = &cobra.Command{
 		if err := lc.Stop(p); err != nil {
 			return err
 		}
-		php := []docker.PHPVersion{
-			{
-				Version:    p.Config.PHP,
-				Extensions: p.Config.Extensions,
-				Ports:      p.Config.Ports,
-			},
+		php, frankenphp, err := runtimePayload(p, global)
+		if err != nil {
+			return err
 		}
-		return lc.Start(p, php, built)
+		return lc.Start(p, php, frankenphp, built)
 	},
 }

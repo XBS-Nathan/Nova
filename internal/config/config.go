@@ -56,8 +56,11 @@ const (
 	DefaultPHP            = "8.2"
 	DefaultNode           = "22"
 	DefaultPackageManager = "npm"
-	NovaDir    = ".nova"
-	ConfigFile = ".nova/config.yaml"
+	NovaDir               = ".nova"
+	ConfigFile            = ".nova/config.yaml"
+
+	RuntimeFPM        = "fpm"
+	RuntimeFrankenPHP = "frankenphp"
 )
 
 // GlobalDir returns ~/.nova, creating it and its subdirectories if needed.
@@ -104,6 +107,8 @@ type ProjectConfig struct {
 	Type         string                       `yaml:"type"`
 	Domain         string                       `yaml:"domain"`
 	PHP            string                       `yaml:"php"`
+	Runtime        string                       `yaml:"runtime"`
+	Octane         bool                         `yaml:"octane"`
 	Node           string                       `yaml:"node"`
 	PackageManager string                       `yaml:"package_manager"`
 	DBDriver     string                       `yaml:"db_driver"`
@@ -189,6 +194,9 @@ func Load(projectDir string) (*ProjectConfig, error) {
 	}
 
 	fillDefaults(cfg, projectDir)
+	if cfg.Octane && cfg.Runtime != RuntimeFrankenPHP {
+		return nil, fmt.Errorf("parsing %s: octane: true requires runtime: frankenphp", path)
+	}
 	return cfg, nil
 }
 
@@ -202,6 +210,9 @@ func fillDefaults(cfg *ProjectConfig, projectDir string) {
 	}
 	if cfg.PHP == "" {
 		cfg.PHP = DefaultPHP
+	}
+	if cfg.Runtime == "" {
+		cfg.Runtime = RuntimeFPM
 	}
 	if cfg.Node == "" {
 		cfg.Node = DefaultNode

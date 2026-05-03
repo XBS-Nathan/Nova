@@ -201,3 +201,98 @@ func TestServiceName_MultipleVersions(t *testing.T) {
 		t.Errorf("ServiceName with 3 versions = %q, want %q", got, "postgres_15")
 	}
 }
+
+func TestGenerateCompose_FrankenPHP_Octane(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	got := generateCompose(ComposeOptions{
+		ProjectsDir:    "/proj",
+		MailpitVersion: "v1.20",
+		FrankenPHP: []FrankenPHPProject{{
+			Name:       "myapp",
+			PHPVersion: "8.3",
+			Extensions: []string{"gd"},
+			Octane:     true,
+			Workdir:    "/srv/myapp",
+		}},
+	})
+
+	for _, want := range []string{
+		"myapp_frankenphp:",
+		"working_dir: /srv/myapp",
+		"NOVA_APP: \"myapp\"",
+		"octane:start",
+		"--server=frankenphp",
+		"--host=0.0.0.0",
+		"--port=8000",
+		"--workers=auto",
+		"--max-requests=500",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in compose:\n%s", want, got)
+		}
+	}
+
+	// No host port mapping — internal only.
+	for _, line := range strings.Split(got, "\n") {
+		if strings.Contains(line, "8000:8000") {
+			t.Errorf("FrankenPHP service should not expose host port 8000, line: %q", line)
+		}
+	}
+}
+
+func TestGenerateCompose_FrankenPHP_ClassicMode(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	got := generateCompose(ComposeOptions{
+		ProjectsDir:    "/proj",
+		MailpitVersion: "v1.20",
+		FrankenPHP: []FrankenPHPProject{{
+			Name:       "myapp",
+			PHPVersion: "8.3",
+			Octane:     false,
+			Workdir:    "/srv/myapp",
+		}},
+	})
+
+	if strings.Contains(got, "octane:start") {
+		t.Errorf("classic mode should not emit octane:start command, got:\n%s", got)
+	}
+	if !strings.Contains(got, "myapp_frankenphp:") {
+		t.Errorf("classic mode missing myapp_frankenphp service, got:\n%s", got)
+	}
+}
+
+func TestGenerateCompose_FrankenPHP_PortsExposedOnCaddy(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	got := generateCompose(ComposeOptions{
+		ProjectsDir:    "/proj",
+		MailpitVersion: "v1.20",
+		FrankenPHP: []FrankenPHPProject{{
+			Name:       "myapp",
+			PHPVersion: "8.3",
+			Workdir:    "/srv/myapp",
+			Ports:      []string{"8080"},
+		}},
+	})
+
+	// Caddy must expose the project's extra port so external requests reach it.
+	if !strings.Contains(got, "\"8080:8080\"") {
+		t.Errorf("Caddy missing 8080 host-port mapping, got:\n%s", got)
+	}
+}
+
+func TestGenerateCompose_NoFrankenPHP_NoChange(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	// Without any FrankenPHP entries, the output should not mention frankenphp.
+	got := generateCompose(ComposeOptions{
+		ProjectsDir:    "/proj",
+		MailpitVersion: "v1.20",
+		PHP: []PHPVersion{{Version: "8.3"}},
+	})
+	if strings.Contains(got, "frankenphp") {
+		t.Errorf("compose should not mention frankenphp when no FrankenPHP projects, got:\n%s", got)
+	}
+}

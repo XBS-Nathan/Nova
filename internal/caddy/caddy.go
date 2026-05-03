@@ -16,10 +16,17 @@ type PortProxy struct {
 	Backend string // e.g. "node-xlinx"
 }
 
+// Upstream describes how Caddy reaches the project's PHP runtime.
+// Kind is "fastcgi" (PHP-FPM via php_fastcgi) or "reverse_proxy" (FrankenPHP via plain HTTP).
+type Upstream struct {
+	Kind    string
+	Address string
+}
+
 // Link creates a Caddy site config and reloads.
-func Link(siteName, docroot, phpService string, portProxies []PortProxy) error {
+func Link(siteName, docroot string, upstream Upstream, portProxies []PortProxy) error {
 	caddyDir := filepath.Join(config.GlobalDir(), "caddy")
-	if err := writeSiteConfig(caddyDir, siteName, docroot, phpService, portProxies); err != nil {
+	if err := writeSiteConfig(caddyDir, siteName, docroot, upstream, portProxies); err != nil {
 		return err
 	}
 	if err := writeMainCaddyfile(caddyDir); err != nil {
@@ -54,13 +61,13 @@ func SiteConfigPath(siteName string) string {
 	return filepath.Join(config.GlobalDir(), "caddy", "sites", siteName+".caddy")
 }
 
-func writeSiteConfig(caddyDir, siteName, docroot, phpService string, portProxies []PortProxy) error {
+func writeSiteConfig(caddyDir, siteName, docroot string, upstream Upstream, portProxies []PortProxy) error {
 	sitesDir := filepath.Join(caddyDir, "sites")
 	if err := os.MkdirAll(sitesDir, 0755); err != nil {
 		return fmt.Errorf("creating sites dir: %w", err)
 	}
 
-	content := generateSiteConfig(siteName, docroot, phpService, portProxies)
+	content := generateSiteConfig(siteName, docroot, upstream, portProxies)
 	path := filepath.Join(sitesDir, siteName+".caddy")
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing site config: %w", err)
@@ -82,18 +89,21 @@ func writeMainCaddyfile(caddyDir string) error {
 	return nil
 }
 
-func generateSiteConfig(siteName, docroot, phpService string, portProxies []PortProxy) string {
+func generateSiteConfig(siteName, docroot string, upstream Upstream, portProxies []PortProxy) string {
 	var b strings.Builder
 
-	// Main site block
 	fmt.Fprintf(&b, "%s.test {\n", siteName)
-	fmt.Fprintf(&b, "\troot * %s\n", docroot)
-	fmt.Fprintf(&b, "\tphp_fastcgi %s:9000\n", phpService)
-	b.WriteString("\tfile_server\n")
-	b.WriteString("\tencode gzip\n")
+	switch upstream.Kind {
+	case "reverse_proxy":
+		fmt.Fprintf(&b, "\treverse_proxy %s\n", upstream.Address)
+	default: // "fastcgi"
+		fmt.Fprintf(&b, "\troot * %s\n", docroot)
+		fmt.Fprintf(&b, "\tphp_fastcgi %s\n", upstream.Address)
+		b.WriteString("\tfile_server\n")
+		b.WriteString("\tencode gzip\n")
+	}
 	b.WriteString("}\n")
 
-	// Extra port blocks — SSL-terminated reverse proxy to backend services
 	for _, pp := range portProxies {
 		fmt.Fprintf(&b, "\n%s.test:%s {\n", siteName, pp.Port)
 		fmt.Fprintf(&b, "\treverse_proxy %s:%s\n", pp.Backend, pp.Port)

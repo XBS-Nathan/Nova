@@ -23,9 +23,10 @@ var buildCmd = &cobra.Command{
 		cfg := phpimage.ImageConfig{
 			PHPVersion: p.Config.PHP,
 			Extensions: p.Config.Extensions,
+			Runtime:    p.Config.Runtime,
 		}
 
-		fmt.Printf("Building PHP %s...\n", p.Config.PHP)
+		fmt.Printf("Building PHP %s (%s)...\n", p.Config.PHP, p.Config.Runtime)
 		if err := phpimage.ForceBuild(cfg); err != nil {
 			return err
 		}

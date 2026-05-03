@@ -9,6 +9,7 @@ import (
 
 	"github.com/XBS-Nathan/nova/internal/config"
 	"github.com/XBS-Nathan/nova/internal/docker"
+	"github.com/XBS-Nathan/nova/internal/lifecycle"
 	"github.com/XBS-Nathan/nova/internal/project"
 )
 
@@ -59,7 +60,7 @@ func runInContainer(args ...string) error {
 	if err != nil {
 		return err
 	}
-	svc := docker.PHPServiceName(p.Config.PHP)
+	svc := lifecycle.PHPContainer(p.Config, p.Name)
 	return docker.Exec(svc, workdir, args...)
 }
 

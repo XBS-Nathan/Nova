@@ -117,7 +117,7 @@ nova trust
 | `nova snapshot list` | List available snapshots |
 | **Debugging** | |
 | `nova logs [service]` | Stream container logs (all or specific service) |
-| `nova xdebug on/off` | Toggle Xdebug (sub-second, no container restart) |
+| `nova xdebug on/off` | Toggle Xdebug. FPM and Octane modes do a graceful PHP reload (sub-second, no container restart). Classic FrankenPHP mode restarts the project container (~2–3s). |
 | `nova info` | Show project URL, PHP version, DB, service status |
 | **Config** | |
 | `nova use php <version>` | Set the PHP version for this project |
@@ -221,6 +221,19 @@ shared_services:
     environment:
       MEILI_NO_ANALYTICS: "true"
 ```
+
+### Runtime: PHP-FPM (default) or FrankenPHP
+
+By default each project uses the shared PHP-FPM container. Opt into FrankenPHP per project:
+
+```yaml
+runtime: frankenphp   # default: fpm
+octane: true          # optional, requires runtime: frankenphp
+```
+
+- `runtime: frankenphp` runs FrankenPHP in classic mode. The site is fronted by the shared Caddy via `reverse_proxy` to a per-project `<project>_frankenphp` container on port 8000.
+- `octane: true` additionally runs `php artisan octane:start --server=frankenphp`, giving you Laravel Octane's persistent worker mode.
+- All other PHP-related commands (`nova php`, `nova artisan`, `nova xdebug`, hooks, workers) auto-target the right container.
 
 ### Global: `~/.nova/config.yaml`
 

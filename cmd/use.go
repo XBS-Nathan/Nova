@@ -220,6 +220,7 @@ func ensurePHPRunning(version string) error {
 	imgCfg := phpimage.ImageConfig{
 		PHPVersion: version,
 		Extensions: p.Config.Extensions,
+		Runtime:    p.Config.Runtime,
 	}
 	if _, err := phpimage.EnsureBuilt(imgCfg); err != nil {
 		return fmt.Errorf("building PHP %s image: %w", version, err)
@@ -236,7 +237,9 @@ func ensurePHPRunning(version string) error {
 		Collected:      config.CollectVersions(global.ProjectsDir, p.Config),
 		MailpitVersion: global.Versions.Mailpit,
 	}
-	if err := svc.Up(php, false); err != nil {
+	// FrankenPHP runtime is per-project; nova use only switches the shared FPM
+	// container's PHP version. Use nova start/restart to manage FrankenPHP projects.
+	if err := svc.Up(php, nil, false); err != nil {
 		return fmt.Errorf("starting PHP %s service: %w", version, err)
 	}
 
