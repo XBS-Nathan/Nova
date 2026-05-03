@@ -211,6 +211,11 @@ func generateCompose(opts ComposeOptions) string {
 			extraPorts[port] = true
 		}
 	}
+	for _, fp := range opts.FrankenPHP {
+		for _, port := range fp.Ports {
+			extraPorts[port] = true
+		}
+	}
 
 	// Caddy (always included)
 	b.WriteString("  caddy:\n")

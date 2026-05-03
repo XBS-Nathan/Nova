@@ -263,6 +263,26 @@ func TestGenerateCompose_FrankenPHP_ClassicMode(t *testing.T) {
 	}
 }
 
+func TestGenerateCompose_FrankenPHP_PortsExposedOnCaddy(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	got := generateCompose(ComposeOptions{
+		ProjectsDir:    "/proj",
+		MailpitVersion: "v1.20",
+		FrankenPHP: []FrankenPHPProject{{
+			Name:       "myapp",
+			PHPVersion: "8.3",
+			Workdir:    "/srv/myapp",
+			Ports:      []string{"8080"},
+		}},
+	})
+
+	// Caddy must expose the project's extra port so external requests reach it.
+	if !strings.Contains(got, "\"8080:8080\"") {
+		t.Errorf("Caddy missing 8080 host-port mapping, got:\n%s", got)
+	}
+}
+
 func TestGenerateCompose_NoFrankenPHP_NoChange(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
